@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-  <title>Reporta tu Bache</title>
+  <title>Reporta un Bache</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700&display=swap" rel="stylesheet"/>
@@ -190,7 +190,7 @@
 <div id="header">
   <div class="logo-circle">🕳</div>
   <div>
-    <h1>Reporta tu Bache</h1>
+    <h1>Reporta un Bache</h1>
   </div>
   <div id="counter-badge">
     <span class="dot-red"></span>
@@ -205,7 +205,7 @@
     📍 MI UBICACIÓN
   </button>
   <button class="btn-action secondary" id="btn-manual" onclick="toggleModoManual()">
-    🗺 EN EL MAPA
+    🗺 MARCAR EN EL MAPA
   </button>
 </div>
 
@@ -221,6 +221,19 @@
 
   let modoManual = false;
   let marcadorTemp = null;
+  let bachesCargados = [];
+
+  function distanciaMetros(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function hayBacheCercano(lat, lng) {
+    return bachesCargados.some(b => distanciaMetros(lat, lng, b.latitud, b.longitud) < 15);
+  }
 
   const map = L.map('map', { zoomControl: false }).setView([23.6345, -102.5528], 5);
 
@@ -287,7 +300,7 @@
     document.getElementById('map').classList.remove('modo-manual');
     const btnManual = document.getElementById('btn-manual');
     btnManual.classList.remove('active');
-    btnManual.innerHTML = '🗺 EN EL MAPA';
+    btnManual.innerHTML = '🗺 MARCAR EN EL MAPA';
     document.getElementById('btn-gps').disabled = false;
     setStatus('Elige cómo reportar un bache');
     if (marcadorTemp) { map.removeLayer(marcadorTemp); marcadorTemp = null; }
@@ -305,6 +318,11 @@
   }
 
   async function guardarBache(lat, lng) {
+    if (hayBacheCercano(lat, lng)) {
+      mostrarToast('Ya hay un bache reportado aquí', 'info');
+      setStatus('Elige cómo reportar un bache');
+      return;
+    }
     try {
       const res = await fetch(API + '/baches', {
         method: 'POST',
@@ -315,6 +333,8 @@
       if (!res.ok) throw new Error();
 
       const bache = await res.json();
+
+      bachesCargados.push({ latitud: lat, longitud: lng });
 
       L.marker([lat, lng], { icon: iconoBache })
         .addTo(map)
@@ -367,6 +387,7 @@
       const res = await fetch(API + '/baches');
       const baches = await res.json();
       if (!Array.isArray(baches)) return;
+      bachesCargados = baches;
       document.getElementById('total-baches').textContent = baches.length;
       baches.forEach(b => {
         L.marker([b.latitud, b.longitud], { icon: iconoBache })
