@@ -1,3 +1,111 @@
+Skip to content
+reparabaches-commits
+BACHES
+Repository navigation
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security and quality
+Insights
+Settings
+Files
+Go to file
+t
+T
+static
+ESCALLE.HTML
+Procfile
+database.py
+main.py
+requirements.txt
+BACHES
+/
+main.py
+in
+main
+
+Edit
+
+Preview
+Indent mode
+
+Spaces
+Indent size
+
+4
+Line wrap mode
+
+No wrap
+Editing main.py file contents
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+ 12
+ 13
+ 14
+ 15
+ 16
+ 17
+ 18
+ 19
+ 20
+ 21
+ 22
+ 23
+ 24
+ 25
+ 26
+ 27
+ 28
+ 29
+ 30
+ 31
+ 32
+ 33
+ 34
+ 35
+ 36
+ 37
+ 38
+ 39
+ 40
+ 41
+ 42
+ 43
+ 44
+ 45
+ 46
+ 47
+ 48
+ 49
+ 50
+ 51
+ 52
+ 53
+ 54
+ 55
+ 56
+ 57
+ 58
+ 59
+ 60
+ 61
+ 62
+ 63
+ 64
+ 65
+ 66
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -64,118 +172,4 @@ def crear_tablas():
 def index():
     return FileResponse("static/index.html")
 
-@app.post("/baches")
-def crear_bache(bache: BacheCreate, request: Request):
-    ip = get_ip(request)
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    # Verificar si creó un bache en las últimas 24h
-    hace_24h = datetime.now() - timedelta(hours=24)
-    cur.execute(
-        "SELECT timestamp FROM acciones WHERE ip=%s AND tipo='bache' AND timestamp > %s ORDER BY timestamp DESC LIMIT 1",
-        (ip, hace_24h)
-    )
-    row = cur.fetchone()
-    if row:
-        segundos = int((row[0] + timedelta(hours=24) - datetime.now()).total_seconds())
-        cur.close()
-        conn.close()
-        return JSONResponse(status_code=429, content={"error": "limite_bache", "segundos_restantes": segundos})
-
-    cur.execute(
-        "INSERT INTO baches (latitud, longitud, votos) VALUES (%s, %s, %s) RETURNING id, latitud, longitud, votos, fecha_creacion",
-        (bache.latitud, bache.longitud, bache.votos_iniciales)
-    )
-    nuevo = cur.fetchone()
-    cur.execute("INSERT INTO acciones (ip, tipo, bache_id) VALUES (%s, 'bache', %s)", (ip, nuevo[0]))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"id": nuevo[0], "latitud": nuevo[1], "longitud": nuevo[2], "votos": nuevo[3], "fecha_creacion": nuevo[4]}
-
-@app.get("/baches")
-def obtener_baches():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id, latitud, longitud, votos, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "fecha_creacion": r[4]} for r in rows]
-
-@app.post("/baches/{id}/votar")
-def votar_bache(id: int, voto: VotoCreate, request: Request):
-    ip = get_ip(request)
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    # Verificar bloqueo de 6h por haber creado un bache
-    hace_6h = datetime.now() - timedelta(hours=6)
-    cur.execute(
-        "SELECT timestamp FROM acciones WHERE ip=%s AND tipo='bache' AND timestamp > %s ORDER BY timestamp DESC LIMIT 1",
-        (ip, hace_6h)
-    )
-    row = cur.fetchone()
-    if row:
-        segundos = int((row[0] + timedelta(hours=6) - datetime.now()).total_seconds())
-        cur.close()
-        conn.close()
-        return JSONResponse(status_code=429, content={"error": "bloqueo_creacion", "segundos_restantes": segundos})
-
-    # Verificar que no haya votado 2 veces este bache
-    cur.execute(
-        "SELECT COUNT(*) FROM acciones WHERE ip=%s AND tipo='voto' AND bache_id=%s",
-        (ip, id)
-    )
-    conteo = cur.fetchone()[0]
-    if conteo >= 2:
-        cur.close()
-        conn.close()
-        return JSONResponse(status_code=429, content={"error": "max_votos_bache"})
-
-    cur.execute(
-        "UPDATE baches SET votos = votos + %s WHERE id = %s RETURNING votos",
-        (voto.puntos, id)
-    )
-    row = cur.fetchone()
-    cur.execute("INSERT INTO acciones (ip, tipo, bache_id) VALUES (%s, 'voto', %s)", (ip, id))
-    conn.commit()
-    cur.close()
-    conn.close()
-    if not row:
-        return {"error": "Bache no encontrado"}
-    return {"id": id, "votos": row[0], "votos_usados": conteo + 1}
-
-@app.get("/estado")
-def estado_usuario(request: Request):
-    """Devuelve el estado actual del usuario: bloqueos y tiempos restantes"""
-    ip = get_ip(request)
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    ahora = datetime.now()
-    hace_24h = ahora - timedelta(hours=24)
-    hace_6h = ahora - timedelta(hours=6)
-
-    cur.execute(
-        "SELECT timestamp FROM acciones WHERE ip=%s AND tipo='bache' AND timestamp > %s ORDER BY timestamp DESC LIMIT 1",
-        (ip, hace_24h)
-    )
-    ultimo_bache = cur.fetchone()
-
-    cur.execute(
-        "SELECT timestamp FROM acciones WHERE ip=%s AND tipo='bache' AND timestamp > %s ORDER BY timestamp DESC LIMIT 1",
-        (ip, hace_6h)
-    )
-    bache_reciente = cur.fetchone()
-
-    cur.close()
-    conn.close()
-
-    return {
-        "puede_crear_bache": ultimo_bache is None,
-        "segundos_para_crear": int((ultimo_bache[0] + timedelta(hours=24) - ahora).total_seconds()) if ultimo_bache else 0,
-        "bloqueado_por_creacion": bache_reciente is not None,
-        "segundos_bloqueo_votar": int((bache_reciente[0] + timedelta(hours=6) - ahora).total_seconds()) if bache_reciente else 0,
-    }
+Use Control + Shift + m to toggle the tab key moving focus. Alternatively, use esc then tab to move to the next interactive element on the page.
