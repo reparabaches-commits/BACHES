@@ -450,7 +450,7 @@
 
   async function votarBache(id, latBache, lngBache) {
     if (estaEnCooldown()) {
-      mostrarToast('Ya votaste por este bache. Vuelve en 12 horas.', 'error');
+      mostrarToast('Ya votaste por este bache. Vuelve en 6 horas.', 'error');
       return;
     }
     if (!navigator.geolocation) {
