@@ -441,13 +441,38 @@
       </div>`;
   }
 
+  let CFG = { restriccion_votos: 6 * 60, restriccion_creacion: 24 * 60 }; // minutos
+
+  async function cargarConfig() {
+    try {
+      const res = await fetch(API + '/config');
+      const data = await res.json();
+      CFG.restriccion_votos = data.restriccion_votos || 360;
+      CFG.restriccion_creacion = data.restriccion_creacion || 1440;
+    } catch(e) {}
+  }
+
+  function msVotos() { return CFG.restriccion_votos * 60 * 1000; }
+  function msCreacion() { return CFG.restriccion_creacion * 60 * 1000; }
+
   function estaEnCooldown() {
     const last = localStorage.getItem('ultima_accion');
     if (!last) return false;
-    return (Date.now() - parseInt(last)) < 6 * 60 * 60 * 1000;
+    return (Date.now() - parseInt(last)) < msVotos();
+  }
+
+  function puedeCrearBache() {
+    const last = localStorage.getItem('ultima_creacion');
+    if (!last) return true;
+    return (Date.now() - parseInt(last)) >= msCreacion();
   }
 
   function registrarAccion() {
+    localStorage.setItem('ultima_accion', Date.now().toString());
+  }
+
+  function registrarCreacion() {
+    localStorage.setItem('ultima_creacion', Date.now().toString());
     localStorage.setItem('ultima_accion', Date.now().toString());
   }
 
@@ -505,8 +530,12 @@
   }
 
   async function guardarBache(lat, lng, votosIniciales = 2) {
-    if (estaEnCooldown()) {
-      mostrarToast('Debes esperar 6 horas para realizar otra acción.', 'error');
+    if (!puedeCrearBache()) {
+      const last = parseInt(localStorage.getItem('ultima_creacion'));
+      const restante = Math.ceil((last + msCreacion() - Date.now()) / 60000);
+      const horas = Math.floor(restante / 60);
+      const mins = restante % 60;
+      mostrarToast(`Puedes crear otro bache en ${horas > 0 ? horas + 'h ' : ''}${mins}min`, 'error');
       setStatus('Elige cómo reportar un bache');
       return;
     }
@@ -538,7 +567,7 @@
       const total = parseInt(document.getElementById('total-baches').textContent) + 1;
       document.getElementById('total-baches').textContent = total;
 
-      registrarAccion();
+      registrarCreacion();
       mostrarToast('¡Bache reportado! Gracias 🙌', 'exito');
       setStatus('Elige cómo reportar un bache');
     } catch (e) {
@@ -618,7 +647,7 @@
     }
   }
 
-  cargarBaches();
+  cargarConfig().then(() => cargarBaches());
 
   // Modal
   function cerrarModal() {
