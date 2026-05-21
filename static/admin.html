@@ -114,6 +114,7 @@
     <h1>⚙️ Panel Admin — Baches</h1>
   </div>
   <div id="badge-total">Cargando...</div>
+  <button onclick="centrarUbicacion()" style="margin-left:8px;padding:6px 12px;background:#1a1a1a;border:1px solid #444;color:#ccc;border-radius:20px;font-size:12px;cursor:pointer;">📍 Ubicación</button>
 </div>
 
 <div id="map"></div>
@@ -168,7 +169,7 @@
     const completado = b.completado;
     return `
       <div class="popup-admin">
-        <div class="votos-line">⚠️ <b>${b.votos || 0}</b> votos</div>
+        <div class="votos-line">⚠️ <b>${b.votos || 0}</b> votos · 👥 <b>${b.votantes || 0}</b> personas</div>
         <div class="btn-row">
           <button class="btn-completar" onclick="marcarCompletado(${b.id})" ${completado ? 'disabled' : ''}>
             ${completado ? '✅ Completado' : '✔ Completar'}
@@ -247,6 +248,15 @@
   // Cargar config guardada
   const horasGuardadas = localStorage.getItem('restriccion_horas');
   if (horasGuardadas) document.getElementById('sel-horas').value = horasGuardadas;
+
+  function centrarUbicacion() {
+    if (!navigator.geolocation) { mostrarToast('GPS no disponible', 'error'); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { map.setView([pos.coords.latitude, pos.coords.longitude], 17); },
+      () => { mostrarToast('No se pudo obtener la ubicación', 'error'); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   cargarBaches();
 </script>
