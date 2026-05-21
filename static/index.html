@@ -324,8 +324,8 @@
         { headers: { 'Accept-Language': 'es' } }
       );
       const data = await res.json();
-      const addr = data.address || {};
-      return !!(addr.road || addr.highway || addr.street || addr.pedestrian || addr.footway || addr.cycleway);
+      const clasesViales = ['highway', 'cycleway', 'footway', 'path', 'pedestrian'];
+      return clasesViales.includes(data.class);
     } catch (e) {
       return true; // Si falla la validación, dejar pasar
     }
