@@ -19,6 +19,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 class BacheCreate(BaseModel):
     latitud: float
     longitud: float
+    votos_iniciales: int = 2
 
 class VotoCreate(BaseModel):
     puntos: int
@@ -53,8 +54,8 @@ def crear_bache(bache: BacheCreate):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO baches (latitud, longitud, votos) VALUES (%s, %s, 5) RETURNING id, latitud, longitud, votos, fecha_creacion",
-        (bache.latitud, bache.longitud)
+        "INSERT INTO baches (latitud, longitud, votos) VALUES (%s, %s, %s) RETURNING id, latitud, longitud, votos, fecha_creacion",
+        (bache.latitud, bache.longitud, bache.votos_iniciales)
     )
     row = cur.fetchone()
     conn.commit()
