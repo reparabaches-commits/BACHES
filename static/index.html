@@ -314,20 +314,21 @@
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = 'show ' + tipo;
-    setTimeout(() => { t.className = ''; }, 3000);
+    const duracion = tipo === 'error' ? 6000 : 3000;
+    setTimeout(() => { t.className = ''; }, duracion);
   }
 
   async function esUbicacionCalle(lat, lng) {
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18`,
         { headers: { 'Accept-Language': 'es' } }
       );
       const data = await res.json();
       const clasesViales = ['highway', 'cycleway', 'footway', 'path', 'pedestrian'];
       return clasesViales.includes(data.class);
     } catch (e) {
-      return true; // Si falla la validación, dejar pasar
+      return true;
     }
   }
 
