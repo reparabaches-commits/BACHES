@@ -201,8 +201,11 @@
 <div id="map"></div>
 
 <div id="bottom-bar">
+  <button class="btn-action secondary" id="btn-ubicacion" onclick="centrarUbicacion()">
+    📍 UBICACIÓN
+  </button>
   <button class="btn-action" id="btn-gps" onclick="reportarConGPS()">
-    📍 MI UBICACIÓN
+    🕳 MARCAR BACHE AQUÍ
   </button>
   <button class="btn-action secondary" id="btn-manual" onclick="toggleModoManual()">
     🗺 MARCAR EN EL MAPA
@@ -320,9 +323,7 @@
 
   function popupBache(bache) {
     return `
-      <div style="font-family:'Nunito',sans-serif;min-width:150px;text-align:center;">
-        <b style="font-size:14px;">Bache #${bache.id}</b><br>
-        <span style="font-size:11px;color:#888;">${new Date(bache.fecha_creacion).toLocaleDateString('es')}</span><br>
+      <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
         <button onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
           style="margin-top:4px;padding:6px 14px;background:#e63946;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:13px;">
@@ -405,6 +406,25 @@
     }
   }
 
+  function centrarUbicacion() {
+    if (!navigator.geolocation) {
+      mostrarToast('Tu navegador no soporta GPS', 'error');
+      return;
+    }
+    setStatus('Buscando tu ubicación...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 17);
+        setStatus('Elige cómo reportar un bache');
+      },
+      () => {
+        mostrarToast('No se pudo obtener tu ubicación', 'error');
+        setStatus('Elige cómo reportar un bache');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
   async function reportarConGPS() {
     const btn = document.getElementById('btn-gps');
     btn.disabled = true;
@@ -420,8 +440,15 @@
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        setStatus('Guardando bache...');
-        await guardarBache(latitude, longitude);
+        // Si hay un bache a menos de 15m, vota en ese en vez de crear uno nuevo
+        const cercano = bachesCargados.find(b => distanciaMetros(latitude, longitude, b.latitud, b.longitud) < 15);
+        if (cercano) {
+          setStatus('Bache cercano encontrado, sumando voto...');
+          await votarBache(cercano.id, cercano.latitud, cercano.longitud);
+        } else {
+          setStatus('Guardando bache...');
+          await guardarBache(latitude, longitude);
+        }
         btn.disabled = false;
       },
       () => {
