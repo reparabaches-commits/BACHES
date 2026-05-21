@@ -37,9 +37,12 @@ def crear_tablas():
             fecha_creacion TIMESTAMP DEFAULT NOW()
         )
     """)
-    # Agregar columna votos si ya existe la tabla sin ella
     cur.execute("""
         ALTER TABLE baches ADD COLUMN IF NOT EXISTS votos INTEGER DEFAULT 0
+    """
+    )
+    cur.execute("""
+        ALTER TABLE baches ADD COLUMN IF NOT EXISTS completado BOOLEAN DEFAULT FALSE
     """)
     conn.commit()
     cur.close()
@@ -67,11 +70,11 @@ def crear_bache(bache: BacheCreate):
 def obtener_baches():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, latitud, longitud, votos, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
+    cur.execute("SELECT id, latitud, longitud, votos, completado, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "fecha_creacion": r[4]} for r in rows]
+    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "completado": r[4], "fecha_creacion": r[5]} for r in rows]
 
 @app.post("/baches/{id}/votar")
 def votar_bache(id: int, voto: VotoCreate):
@@ -88,3 +91,37 @@ def votar_bache(id: int, voto: VotoCreate):
     if not row:
         return {"error": "Bache no encontrado"}
     return {"id": id, "votos": row[0]}
+
+
+@app.delete("/baches/{id}")
+def eliminar_bache(id: int):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM baches WHERE id = %s RETURNING id", (id,))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    if not row:
+        return {"error": "Bache no encontrado"}
+    return {"eliminado": True, "id": id}
+
+
+@app.post("/baches/{id}/completar")
+def completar_bache(id: int):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        ALTER TABLE baches ADD COLUMN IF NOT EXISTS completado BOOLEAN DEFAULT FALSE
+    """)
+    cur.execute(
+        "UPDATE baches SET completado = TRUE WHERE id = %s RETURNING id",
+        (id,)
+    )
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    if not row:
+        return {"error": "Bache no encontrado"}
+    return {"completado": True, "id": id}
