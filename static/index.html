@@ -183,6 +183,78 @@
       0%, 100% { box-shadow: 0 0 6px rgba(244,162,97,0.8); }
       50% { box-shadow: 0 0 16px rgba(244,162,97,1); }
     }
+
+    /* Modal instrucciones */
+    #modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #modal-overlay.hidden { display: none; }
+
+    #modal-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 24px 20px;
+      max-width: 340px;
+      width: 100%;
+      color: #fff;
+    }
+    #modal-box h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      color: #e63946;
+      text-align: center;
+    }
+    .instruccion {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+    .instruccion span.ico { font-size: 18px; flex-shrink: 0; }
+    #btn-cerrar-modal {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    /* Botón ayuda flotante */
+    #btn-ayuda {
+      position: fixed;
+      top: 60px;
+      left: 12px;
+      z-index: 999;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -197,6 +269,32 @@
     <span id="total-baches">0</span> baches
   </div>
 </div>
+
+<!-- Modal instrucciones -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h2>¿Cómo funciona?</h2>
+    <div class="instruccion">
+      <span class="ico">📍</span>
+      <span><b>UBICACIÓN</b> — Centra el mapa en donde estás.</span>
+    </div>
+    <div class="instruccion">
+      <span class="ico">🕳</span>
+      <span><b>MARCAR BACHE AQUÍ</b> — Reporta un bache en tu ubicación actual. Si ya hay uno cerca, suma tu voto automáticamente.</span>
+    </div>
+    <div class="instruccion">
+      <span class="ico">🗺</span>
+      <span><b>MARCAR EN EL MAPA</b> — Toca cualquier calle del mapa para reportar un bache ahí.</span>
+    </div>
+    <div class="instruccion">
+      <span class="ico">👍</span>
+      <span><b>VOTAR</b> — Toca un bache en el mapa y vota. Si estás a menos de 50 m sumas 5 votos, si estás más lejos sumas 2.</span>
+    </div>
+    <button id="btn-cerrar-modal" onclick="cerrarModal()">ENTENDIDO</button>
+  </div>
+</div>
+
+<button id="btn-ayuda" onclick="abrirModal()" title="Instrucciones">?</button>
 
 <div id="map"></div>
 
@@ -385,7 +483,7 @@
       if (!res.ok) throw new Error();
 
       const bache = await res.json();
-      bache.votos = 0;
+      bache.votos = bache.votos || 5;
       bachesCargados.push(bache);
 
       L.marker([lat, lng], { icon: iconoBache })
@@ -478,6 +576,38 @@
   }
 
   cargarBaches();
+
+  // Modal
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  }
+  function abrirModal() {
+    document.getElementById('modal-overlay').classList.remove('hidden');
+  }
+
+  // Punto azul - ubicación en tiempo real
+  let marcadorUsuario = null;
+  const iconoUsuario = L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;background:#4a90d9;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(74,144,217,0.9);"></div>',
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (!marcadorUsuario) {
+          marcadorUsuario = L.marker([latitude, longitude], { icon: iconoUsuario, zIndexOffset: 1000 }).addTo(map);
+        } else {
+          marcadorUsuario.setLatLng([latitude, longitude]);
+        }
+      },
+      null,
+      { enableHighAccuracy: true }
+    );
+  }
 </script>
 </body>
 </html>
