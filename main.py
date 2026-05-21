@@ -48,6 +48,14 @@ def crear_tablas():
     cur.execute("""
         ALTER TABLE baches ADD COLUMN IF NOT EXISTS votantes INTEGER DEFAULT 0
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS config (
+            clave VARCHAR(50) PRIMARY KEY,
+            valor INTEGER NOT NULL
+        )
+    """)
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('restriccion_votos', 360) ON CONFLICT DO NOTHING")
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('restriccion_creacion', 1440) ON CONFLICT DO NOTHING")
     conn.commit()
     cur.close()
     conn.close()
@@ -96,6 +104,32 @@ def votar_bache(id: int, voto: VotoCreate):
         return {"error": "Bache no encontrado"}
     return {"id": id, "votos": row[0], "votantes": row[1]}
 
+
+
+class ConfigUpdate(BaseModel):
+    restriccion_votos: int
+    restriccion_creacion: int
+
+@app.get("/config")
+def get_config():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT clave, valor FROM config")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return {r[0]: r[1] for r in rows}
+
+@app.post("/config")
+def set_config(cfg: ConfigUpdate):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'restriccion_votos'", (cfg.restriccion_votos,))
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'restriccion_creacion'", (cfg.restriccion_creacion,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
 
 @app.delete("/baches/{id}")
 def eliminar_bache(id: int):
