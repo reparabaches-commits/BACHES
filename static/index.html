@@ -150,7 +150,7 @@
       border-radius: 20px;
       font-size: 13px;
       opacity: 0;
-      transition: all 0.7s;
+      transition: all 0.3s;
       z-index: 9999;
       white-space: nowrap;
       pointer-events: none;
@@ -314,21 +314,58 @@
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.className = 'show ' + tipo;
-    setTimeout(() => { t.className = ''; }, 3000);
+    const duracion = tipo === 'error' ? 6000 : 3000;
+    setTimeout(() => { t.className = ''; }, duracion);
   }
 
-  async function esUbicacionCalle(lat, lng) {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-        { headers: { 'Accept-Language': 'es' } }
-      );
-      const data = await res.json();
-      const clasesViales = ['highway', 'cycleway', 'footway', 'path', 'pedestrian'];
-      return clasesViales.includes(data.class);
-    } catch (e) {
-      return true; // Si falla la validación, dejar pasar
+  function popupBache(bache) {
+    return `
+      <div style="font-family:'Nunito',sans-serif;min-width:150px;text-align:center;">
+        <b style="font-size:14px;">Bache #${bache.id}</b><br>
+        <span style="font-size:11px;color:#888;">${new Date(bache.fecha_creacion).toLocaleDateString('es')}</span><br>
+        <span style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
+        <button onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
+          style="margin-top:4px;padding:6px 14px;background:#e63946;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:13px;">
+          👍 Votar
+        </button>
+      </div>`;
+  }
+
+  async function votarBache(id, latBache, lngBache) {
+    if (!navigator.geolocation) {
+      mostrarToast('Tu navegador no soporta GPS', 'error');
+      return;
     }
+    mostrarToast('Verificando tu ubicación...', 'info');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const dist = distanciaMetros(pos.coords.latitude, pos.coords.longitude, latBache, lngBache);
+        const puntos = dist <= 50 ? 5 : 2;
+        try {
+          const res = await fetch(`${API}/baches/${id}/votar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ puntos })
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          const msg = puntos === 5
+            ? `¡+5 votos! Estás cerca del bache 📍`
+            : `+2 votos registrados`;
+          mostrarToast(msg, 'exito');
+          // Actualizar popup
+          const b = bachesCargados.find(b => b.id === id);
+          if (b) { b.votos = data.votos; }
+          map.closePopup();
+        } catch (e) {
+          mostrarToast('Error al votar. Intenta de nuevo.', 'error');
+        }
+      },
+      () => {
+        mostrarToast('No se pudo obtener tu ubicación', 'error');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }
 
   async function guardarBache(lat, lng) {
@@ -337,15 +374,6 @@
       setStatus('Elige cómo reportar un bache');
       return;
     }
-
-    setStatus('Verificando ubicación...');
-    const esCalle = await esUbicacionCalle(lat, lng);
-    if (!esCalle) {
-      mostrarToast('Ese punto no parece una calle. Marcá sobre la vía.', 'error');
-      setStatus('Intentá marcar directamente sobre la calle');
-      return;
-    }
-
     try {
       const res = await fetch(API + '/baches', {
         method: 'POST',
@@ -356,12 +384,12 @@
       if (!res.ok) throw new Error();
 
       const bache = await res.json();
-
-      bachesCargados.push({ latitud: lat, longitud: lng });
+      bache.votos = 0;
+      bachesCargados.push(bache);
 
       L.marker([lat, lng], { icon: iconoBache })
         .addTo(map)
-        .bindPopup(`<b>Bache #${bache.id}</b><br>Recién reportado`)
+        .bindPopup(popupBache(bache))
         .openPopup();
 
       map.setView([lat, lng], 17);
@@ -415,7 +443,7 @@
       baches.forEach(b => {
         L.marker([b.latitud, b.longitud], { icon: iconoBache })
           .addTo(map)
-          .bindPopup(`<b>Bache #${b.id}</b><br>${new Date(b.fecha_creacion).toLocaleDateString('es-MX')}`);
+          .bindPopup(popupBache(b));
       });
     } catch (e) {
       console.error('Error cargando baches', e);
