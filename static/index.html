@@ -422,7 +422,7 @@
   const marcadoresMap = {}; // id -> marker
 
   function popupHtml(bache) {
-    const votado = estaEnCooldown(bache.id);
+    const votado = estaEnCooldown();
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
@@ -434,15 +434,14 @@
       </div>`;
   }
 
-  function estaEnCooldown(id) {
-    const key = 'voto_bache_' + id;
-    const last = localStorage.getItem(key);
+  function estaEnCooldown() {
+    const last = localStorage.getItem('ultimo_voto');
     if (!last) return false;
-    return (Date.now() - parseInt(last)) < 12 * 60 * 60 * 1000;
+    return (Date.now() - parseInt(last)) < 6 * 60 * 60 * 1000;
   }
 
-  function registrarVoto(id) {
-    localStorage.setItem('voto_bache_' + id, Date.now().toString());
+  function registrarVoto() {
+    localStorage.setItem('ultimo_voto', Date.now().toString());
   }
 
   function popupBache(bache) {
@@ -450,7 +449,7 @@
   }
 
   async function votarBache(id, latBache, lngBache) {
-    if (estaEnCooldown(id)) {
+    if (estaEnCooldown()) {
       mostrarToast('Ya votaste por este bache. Vuelve en 12 horas.', 'error');
       return;
     }
@@ -471,7 +470,7 @@
           });
           if (!res.ok) throw new Error();
           const data = await res.json();
-          registrarVoto(id);
+          registrarVoto();
           // Actualizar votos en vivo sin recargar
           const b = bachesCargados.find(b => b.id === id);
           if (b) { b.votos = data.votos; }
