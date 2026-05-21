@@ -53,7 +53,7 @@ def crear_bache(bache: BacheCreate):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO baches (latitud, longitud) VALUES (%s, %s) RETURNING id, latitud, longitud, votos, fecha_creacion",
+        "INSERT INTO baches (latitud, longitud, votos) VALUES (%s, %s, 5) RETURNING id, latitud, longitud, votos, fecha_creacion",
         (bache.latitud, bache.longitud)
     )
     row = cur.fetchone()
