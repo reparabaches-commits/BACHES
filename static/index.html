@@ -317,19 +317,17 @@
     setTimeout(() => { t.className = ''; }, 3000);
   }
 
-  async function snapearACalle(lat, lng) {
+  async function esUbicacionCalle(lat, lng) {
     try {
       const res = await fetch(
-        `https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}?number=1`
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { headers: { 'Accept-Language': 'es' } }
       );
       const data = await res.json();
-      if (data.code !== 'Ok' || !data.waypoints?.length) return null;
-      const wp = data.waypoints[0];
-      const distancia = wp.distance; // metros
-      if (distancia > 50) return null; // Muy lejos de cualquier calle
-      return { lat: wp.location[1], lng: wp.location[0], distancia };
+      const addr = data.address || {};
+      return !!(addr.road || addr.highway || addr.street || addr.pedestrian || addr.footway || addr.cycleway);
     } catch (e) {
-      return null; // Si falla, usar coordenadas originales
+      return true; // Si falla la validación, dejar pasar
     }
   }
 
@@ -340,44 +338,38 @@
       return;
     }
 
-    setStatus('Ajustando a la calle más cercana...');
-    const snap = await snapearACalle(lat, lng);
-
-    if (!snap) {
-      mostrarToast('No hay calle cercana. Marcá más cerca de una vía.', 'error');
+    setStatus('Verificando ubicación...');
+    const esCalle = await esUbicacionCalle(lat, lng);
+    if (!esCalle) {
+      mostrarToast('Ese punto no parece una calle. Marcá sobre la vía.', 'error');
       setStatus('Intentá marcar directamente sobre la calle');
       return;
     }
-
-    const latFinal = snap.lat;
-    const lngFinal = snap.lng;
-    const fueAjustado = snap.distancia > 5;
 
     try {
       const res = await fetch(API + '/baches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitud: latFinal, longitud: lngFinal })
+        body: JSON.stringify({ latitud: lat, longitud: lng })
       });
 
       if (!res.ok) throw new Error();
 
       const bache = await res.json();
 
-      bachesCargados.push({ latitud: latFinal, longitud: lngFinal });
+      bachesCargados.push({ latitud: lat, longitud: lng });
 
-      L.marker([latFinal, lngFinal], { icon: iconoBache })
+      L.marker([lat, lng], { icon: iconoBache })
         .addTo(map)
         .bindPopup(`<b>Bache #${bache.id}</b><br>Recién reportado`)
         .openPopup();
 
-      map.setView([latFinal, lngFinal], 17);
+      map.setView([lat, lng], 17);
 
       const total = parseInt(document.getElementById('total-baches').textContent) + 1;
       document.getElementById('total-baches').textContent = total;
 
-      const msg = fueAjustado ? '¡Bache ajustado a la calle! Gracias 🙌' : '¡Bache reportado! Gracias 🙌';
-      mostrarToast(msg, 'exito');
+      mostrarToast('¡Bache reportado! Gracias 🙌', 'exito');
       setStatus('Elige cómo reportar un bache');
     } catch (e) {
       mostrarToast('Error al guardar. Intenta de nuevo.', 'error');
