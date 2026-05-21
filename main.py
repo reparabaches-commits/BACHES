@@ -1,91 +1,649 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from database import get_db_connection
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Reporta un Bache</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-app = FastAPI()
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    #header {
+      padding: 10px 16px;
+      background: #0f0f0f;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
+    }
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+    .logo-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #e63946;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      color: #fff;
+      flex-shrink: 0;
+    }
 
-class BacheCreate(BaseModel):
-    latitud: float
-    longitud: float
-    votos_iniciales: int = 2
+    #header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 1px;
+      color: #fff;
+      line-height: 1;
+    }
 
-class VotoCreate(BaseModel):
-    puntos: int
+    #counter-badge {
+      margin-left: auto;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #e63946;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
 
-@app.on_event("startup")
-def crear_tablas():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS baches (
-            id SERIAL PRIMARY KEY,
-            latitud FLOAT NOT NULL,
-            longitud FLOAT NOT NULL,
-            votos INTEGER DEFAULT 0,
-            fecha_creacion TIMESTAMP DEFAULT NOW()
-        )
-    """)
-    # Agregar columna votos si ya existe la tabla sin ella
-    cur.execute("""
-        ALTER TABLE baches ADD COLUMN IF NOT EXISTS votos INTEGER DEFAULT 0
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+    .dot-red {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e63946;
+      animation: pulso 1.5s infinite;
+    }
 
-@app.get("/")
-def index():
-    return FileResponse("static/index.html")
+    @keyframes pulso {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
 
-@app.post("/baches")
-def crear_bache(bache: BacheCreate):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO baches (latitud, longitud, votos) VALUES (%s, %s, %s) RETURNING id, latitud, longitud, votos, fecha_creacion",
-        (bache.latitud, bache.longitud, bache.votos_iniciales)
-    )
-    row = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"id": row[0], "latitud": row[1], "longitud": row[2], "votos": row[3], "fecha_creacion": row[4]}
+    #map { flex: 1; width: 100%; z-index: 1; }
 
-@app.get("/baches")
-def obtener_baches():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id, latitud, longitud, votos, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "fecha_creacion": r[4]} for r in rows]
+    #bottom-bar {
+      background: #0f0f0f;
+      border-top: 1px solid #222;
+      padding: 12px 16px;
+      flex-shrink: 0;
+      display: flex;
+      gap: 10px;
+    }
 
-@app.post("/baches/{id}/votar")
-def votar_bache(id: int, voto: VotoCreate):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE baches SET votos = votos + %s WHERE id = %s RETURNING votos",
-        (voto.puntos, id)
-    )
-    row = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
-    if not row:
-        return {"error": "Bache no encontrado"}
-    return {"id": id, "votos": row[0]}
+    .btn-action {
+      flex: 1;
+      padding: 14px 8px;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.2s, transform 0.1s;
+    }
 
+    .btn-action.secondary {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ccc;
+    }
+
+    .btn-action.secondary.active {
+      background: #2a2a2a;
+      border-color: #e63946;
+      color: #e63946;
+    }
+
+    .btn-action:active { transform: scale(0.97); }
+    .btn-action:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+    #status-msg {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+      min-height: 16px;
+      padding: 0 4px;
+    }
+
+    #status-wrapper {
+      flex-shrink: 0;
+      padding: 0 16px 10px;
+      background: #0f0f0f;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 130px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 9999;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #toast.exito { border-color: #2ecc71; color: #2ecc71; }
+    #toast.error { border-color: #e63946; color: #e63946; }
+    #toast.info { border-color: #f4a261; color: #f4a261; }
+
+    /* Cursor crosshair cuando modo manual está activo */
+    #map.modo-manual { cursor: crosshair; }
+
+    /* Marcador temporal */
+    .marcador-temp {
+      width: 18px;
+      height: 18px;
+      background: #f4a261;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px rgba(244,162,97,0.9);
+      animation: pulso-temp 1s infinite;
+    }
+
+    @keyframes pulso-temp {
+      0%, 100% { box-shadow: 0 0 6px rgba(244,162,97,0.8); }
+      50% { box-shadow: 0 0 16px rgba(244,162,97,1); }
+    }
+
+    /* Modal instrucciones */
+    #modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #modal-overlay.hidden { display: none; }
+
+    #modal-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 24px 20px;
+      max-width: 340px;
+      width: 100%;
+      color: #fff;
+    }
+    #modal-box h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      color: #e63946;
+      text-align: center;
+    }
+    .instruccion {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+    .instruccion span.ico { font-size: 18px; flex-shrink: 0; }
+    #btn-cerrar-modal {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    /* Botón ayuda flotante */
+    #btn-ayuda {
+      position: fixed;
+      top: 60px;
+      left: 12px;
+      z-index: 999;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo-circle">🕳</div>
+  <div>
+    <h1>Reporta un Bache</h1>
+  </div>
+  <div id="counter-badge">
+    <span class="dot-red"></span>
+    <span id="total-baches">0</span> baches
+  </div>
+</div>
+
+<!-- Modal instrucciones -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h2>¿Cómo funciona?</h2>
+    <div class="instruccion">
+      <span class="ico">📍</span>
+      <span><b>UBICACIÓN</b> — Centra el mapa en donde estás.</span>
+    </div>
+    <div class="instruccion">
+      <span class="ico">🕳</span>
+      <span><b>MARCAR BACHE AQUÍ</b> — Reporta un bache en tu ubicación actual. Si ya hay uno cerca, suma tu voto automáticamente.</span>
+    </div>
+    <div class="instruccion">
+      <span class="ico">🗺</span>
+      <span><b>MARCAR EN EL MAPA</b> — Toca cualquier calle del mapa para reportar un bache ahí.</span>
+    </div>
+    <div class="instruccion">
+      <span class="ico">👍</span>
+      <span><b>VOTAR</b> — Toca un bache en el mapa y vota. Si estás a menos de 50 m sumas 5 votos, si estás más lejos sumas 2.</span>
+    </div>
+    <button id="btn-cerrar-modal" onclick="cerrarModal()">ENTENDIDO</button>
+  </div>
+</div>
+
+<button id="btn-ayuda" onclick="abrirModal()" title="Instrucciones">?</button>
+
+<div id="map"></div>
+
+<div id="bottom-bar">
+  <button class="btn-action secondary" id="btn-ubicacion" onclick="centrarUbicacion()">
+    📍 UBICACIÓN
+  </button>
+  <button class="btn-action" id="btn-gps" onclick="reportarConGPS()">
+    🕳 MARCAR BACHE AQUÍ
+  </button>
+  <button class="btn-action secondary" id="btn-manual" onclick="toggleModoManual()">
+    🗺 MARCAR EN EL MAPA
+  </button>
+</div>
+
+<div id="status-wrapper">
+  <div id="status-msg">Elige cómo reportar un bache</div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const API = "https://baches-production.up.railway.app";
+
+  let modoManual = false;
+  let marcadorTemp = null;
+  let bachesCargados = [];
+
+  function distanciaMetros(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function hayBacheCercano(lat, lng) {
+    return bachesCargados.some(b => distanciaMetros(lat, lng, b.latitud, b.longitud) < 15);
+  }
+
+  const map = L.map('map', { zoomControl: false }).setView([23.6345, -102.5528], 5);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(map);
+
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  const iconoBache = L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;background:#e63946;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(230,57,70,0.8);"></div>',
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+
+  const iconoTemp = L.divIcon({
+    className: '',
+    html: '<div class="marcador-temp"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+
+  // Click en el mapa para modo manual
+  map.on('click', async function(e) {
+    if (!modoManual) return;
+
+    const { lat, lng } = e.latlng;
+
+    // Poner marcador temporal
+    if (marcadorTemp) map.removeLayer(marcadorTemp);
+    marcadorTemp = L.marker([lat, lng], { icon: iconoTemp }).addTo(map);
+
+    setStatus('Guardando bache en esa ubicación...');
+
+    await guardarBache(lat, lng, 2);
+
+    // Limpiar marcador temp y salir del modo manual
+    if (marcadorTemp) { map.removeLayer(marcadorTemp); marcadorTemp = null; }
+    desactivarModoManual();
+  });
+
+  function toggleModoManual() {
+    if (modoManual) {
+      desactivarModoManual();
+    } else {
+      activarModoManual();
+    }
+  }
+
+  function activarModoManual() {
+    modoManual = true;
+    document.getElementById('map').classList.add('modo-manual');
+    document.getElementById('btn-manual').classList.add('active');
+    document.getElementById('btn-manual').textContent = '✕ CANCELAR';
+    document.getElementById('btn-gps').disabled = true;
+    setStatus('Toca el lugar exacto del bache en el mapa');
+    mostrarToast('Toca el mapa para marcar el bache', 'info');
+  }
+
+  function desactivarModoManual() {
+    modoManual = false;
+    document.getElementById('map').classList.remove('modo-manual');
+    const btnManual = document.getElementById('btn-manual');
+    btnManual.classList.remove('active');
+    btnManual.innerHTML = '🗺 MARCAR EN EL MAPA';
+    document.getElementById('btn-gps').disabled = false;
+    setStatus('Elige cómo reportar un bache');
+    if (marcadorTemp) { map.removeLayer(marcadorTemp); marcadorTemp = null; }
+  }
+
+  function setStatus(msg) {
+    document.getElementById('status-msg').textContent = msg;
+  }
+
+  function mostrarToast(msg, tipo = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + tipo;
+    const duracion = tipo === 'error' ? 6000 : 3000;
+    setTimeout(() => { t.className = ''; }, duracion);
+  }
+
+  const marcadoresMap = {}; // id -> marker
+
+  function popupHtml(bache) {
+    const votado = estaEnCooldown();
+    return `
+      <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
+        <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
+        <button id="btn-votar-${bache.id}" onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
+          style="margin-top:4px;padding:6px 14px;background:${votado ? '#444' : '#e63946'};color:${votado ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${votado ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
+          ${votado ? 'disabled' : ''}>
+          ${votado ? '⏳ Ya votaste' : '👍 Votar'}
+        </button>
+      </div>`;
+  }
+
+  function estaEnCooldown() {
+    const last = localStorage.getItem('ultima_accion');
+    if (!last) return false;
+    return (Date.now() - parseInt(last)) < 6 * 60 * 60 * 1000;
+  }
+
+  function registrarAccion() {
+    localStorage.setItem('ultima_accion', Date.now().toString());
+  }
+
+  function popupBache(bache) {
+    return popupHtml(bache);
+  }
+
+  async function votarBache(id, latBache, lngBache) {
+    if (estaEnCooldown()) {
+      mostrarToast('Ya votaste por este bache. Vuelve en 6 horas.', 'error');
+      return;
+    }
+    if (!navigator.geolocation) {
+      mostrarToast('Tu navegador no soporta GPS', 'error');
+      return;
+    }
+    mostrarToast('Verificando tu ubicación...', 'info');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const dist = distanciaMetros(pos.coords.latitude, pos.coords.longitude, latBache, lngBache);
+        const puntos = dist <= 50 ? 5 : 2;
+        try {
+          const res = await fetch(`${API}/baches/${id}/votar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ puntos })
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          registrarAccion();
+          // Actualizar votos en vivo sin recargar
+          const b = bachesCargados.find(b => b.id === id);
+          if (b) { b.votos = data.votos; }
+          const spanVotos = document.getElementById('votos-bache-' + id);
+          if (spanVotos) spanVotos.innerHTML = '⚠️ <b>' + data.votos + '</b> votos';
+          const btnVotar = document.getElementById('btn-votar-' + id);
+          if (btnVotar) {
+            btnVotar.disabled = true;
+            btnVotar.textContent = '⏳ Ya votaste';
+            btnVotar.style.background = '#444';
+            btnVotar.style.color = '#888';
+            btnVotar.style.cursor = 'not-allowed';
+          }
+          const msg = puntos === 5 ? '¡+5 votos! Estás cerca del bache 📍' : '+2 votos registrados';
+          mostrarToast(msg, 'exito');
+        } catch (e) {
+          mostrarToast('Error al votar. Intenta de nuevo.', 'error');
+        }
+      },
+      () => {
+        mostrarToast('No se pudo obtener tu ubicación', 'error');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  async function guardarBache(lat, lng, votosIniciales = 2) {
+    if (estaEnCooldown()) {
+      mostrarToast('Debes esperar 6 horas para realizar otra acción.', 'error');
+      setStatus('Elige cómo reportar un bache');
+      return;
+    }
+    if (hayBacheCercano(lat, lng)) {
+      mostrarToast('Ya hay un bache reportado aquí', 'info');
+      setStatus('Elige cómo reportar un bache');
+      return;
+    }
+    try {
+      const res = await fetch(API + '/baches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitud: lat, longitud: lng, votos_iniciales: votosIniciales })
+      });
+
+      if (!res.ok) throw new Error();
+
+      const bache = await res.json();
+      bache.votos = bache.votos || votosIniciales;
+      bachesCargados.push(bache);
+
+      L.marker([lat, lng], { icon: iconoBache })
+        .addTo(map)
+        .bindPopup(popupBache(bache))
+        .openPopup();
+
+      map.setView([lat, lng], 17);
+
+      const total = parseInt(document.getElementById('total-baches').textContent) + 1;
+      document.getElementById('total-baches').textContent = total;
+
+      registrarAccion();
+      mostrarToast('¡Bache reportado! Gracias 🙌', 'exito');
+      setStatus('Elige cómo reportar un bache');
+    } catch (e) {
+      mostrarToast('Error al guardar. Intenta de nuevo.', 'error');
+      setStatus('Elige cómo reportar un bache');
+    }
+  }
+
+  function centrarUbicacion() {
+    if (!navigator.geolocation) {
+      mostrarToast('Tu navegador no soporta GPS', 'error');
+      return;
+    }
+    setStatus('Buscando tu ubicación...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 17);
+        setStatus('Elige cómo reportar un bache');
+      },
+      () => {
+        mostrarToast('No se pudo obtener tu ubicación', 'error');
+        setStatus('Elige cómo reportar un bache');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  async function reportarConGPS() {
+    const btn = document.getElementById('btn-gps');
+    btn.disabled = true;
+    setStatus('Obteniendo tu ubicación...');
+
+    if (!navigator.geolocation) {
+      mostrarToast('Tu navegador no soporta GPS', 'error');
+      btn.disabled = false;
+      setStatus('');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Si hay un bache a menos de 15m, vota en ese en vez de crear uno nuevo
+        const cercano = bachesCargados.find(b => distanciaMetros(latitude, longitude, b.latitud, b.longitud) < 15);
+        if (cercano) {
+          setStatus('Bache cercano encontrado, sumando voto...');
+          await votarBache(cercano.id, cercano.latitud, cercano.longitud);
+        } else {
+          setStatus('Guardando bache...');
+          await guardarBache(latitude, longitude, 5);
+        }
+        btn.disabled = false;
+      },
+      () => {
+        mostrarToast('No se pudo obtener tu ubicación', 'error');
+        setStatus('Activa el GPS e intenta de nuevo');
+        btn.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  async function cargarBaches() {
+    try {
+      const res = await fetch(API + '/baches');
+      const baches = await res.json();
+      if (!Array.isArray(baches)) return;
+      bachesCargados = baches;
+      document.getElementById('total-baches').textContent = baches.length;
+      baches.forEach(b => {
+        L.marker([b.latitud, b.longitud], { icon: iconoBache })
+          .addTo(map)
+          .bindPopup(popupBache(b));
+      });
+    } catch (e) {
+      console.error('Error cargando baches', e);
+    }
+  }
+
+  cargarBaches();
+
+  // Modal
+  function cerrarModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  }
+  function abrirModal() {
+    document.getElementById('modal-overlay').classList.remove('hidden');
+  }
+
+  // Punto azul - ubicación en tiempo real
+  let marcadorUsuario = null;
+  const iconoUsuario = L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;background:#4a90d9;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(74,144,217,0.9);"></div>',
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (!marcadorUsuario) {
+          marcadorUsuario = L.marker([latitude, longitude], { icon: iconoUsuario, zIndexOffset: 1000 }).addTo(map);
+        } else {
+          marcadorUsuario.setLatLng([latitude, longitude]);
+        }
+      },
+      null,
+      { enableHighAccuracy: true }
+    );
+  }
+</script>
+</body>
+</html>
