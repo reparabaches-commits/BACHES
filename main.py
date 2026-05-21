@@ -43,6 +43,10 @@ def crear_tablas():
     )
     cur.execute("""
         ALTER TABLE baches ADD COLUMN IF NOT EXISTS completado BOOLEAN DEFAULT FALSE
+    """
+    )
+    cur.execute("""
+        ALTER TABLE baches ADD COLUMN IF NOT EXISTS votantes INTEGER DEFAULT 0
     """)
     conn.commit()
     cur.close()
@@ -70,18 +74,18 @@ def crear_bache(bache: BacheCreate):
 def obtener_baches():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, latitud, longitud, votos, completado, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
+    cur.execute("SELECT id, latitud, longitud, votos, votantes, completado, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "completado": r[4], "fecha_creacion": r[5]} for r in rows]
+    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "votantes": r[4], "completado": r[5], "fecha_creacion": r[6]} for r in rows]
 
 @app.post("/baches/{id}/votar")
 def votar_bache(id: int, voto: VotoCreate):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "UPDATE baches SET votos = votos + %s WHERE id = %s RETURNING votos",
+        "UPDATE baches SET votos = votos + %s, votantes = votantes + 1 WHERE id = %s RETURNING votos, votantes",
         (voto.puntos, id)
     )
     row = cur.fetchone()
@@ -90,7 +94,7 @@ def votar_bache(id: int, voto: VotoCreate):
     conn.close()
     if not row:
         return {"error": "Bache no encontrado"}
-    return {"id": id, "votos": row[0]}
+    return {"id": id, "votos": row[0], "votantes": row[1]}
 
 
 @app.delete("/baches/{id}")
@@ -113,6 +117,10 @@ def completar_bache(id: int):
     cur = conn.cursor()
     cur.execute("""
         ALTER TABLE baches ADD COLUMN IF NOT EXISTS completado BOOLEAN DEFAULT FALSE
+    """
+    )
+    cur.execute("""
+        ALTER TABLE baches ADD COLUMN IF NOT EXISTS votantes INTEGER DEFAULT 0
     """)
     cur.execute(
         "UPDATE baches SET completado = TRUE WHERE id = %s RETURNING id",
