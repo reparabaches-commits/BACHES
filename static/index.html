@@ -371,7 +371,7 @@
 
     setStatus('Guardando bache en esa ubicación...');
 
-    await guardarBache(lat, lng);
+    await guardarBache(lat, lng, 2);
 
     // Limpiar marcador temp y salir del modo manual
     if (marcadorTemp) { map.removeLayer(marcadorTemp); marcadorTemp = null; }
@@ -419,18 +419,41 @@
     setTimeout(() => { t.className = ''; }, duracion);
   }
 
-  function popupBache(bache) {
+  const marcadoresMap = {}; // id -> marker
+
+  function popupHtml(bache) {
+    const votado = estaEnCooldown(bache.id);
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
-        <span style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
-        <button onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
-          style="margin-top:4px;padding:6px 14px;background:#e63946;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:13px;">
-          👍 Votar
+        <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
+        <button id="btn-votar-${bache.id}" onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
+          style="margin-top:4px;padding:6px 14px;background:${votado ? '#444' : '#e63946'};color:${votado ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${votado ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
+          ${votado ? 'disabled' : ''}>
+          ${votado ? '⏳ Ya votaste' : '👍 Votar'}
         </button>
       </div>`;
   }
 
+  function estaEnCooldown(id) {
+    const key = 'voto_bache_' + id;
+    const last = localStorage.getItem(key);
+    if (!last) return false;
+    return (Date.now() - parseInt(last)) < 12 * 60 * 60 * 1000;
+  }
+
+  function registrarVoto(id) {
+    localStorage.setItem('voto_bache_' + id, Date.now().toString());
+  }
+
+  function popupBache(bache) {
+    return popupHtml(bache);
+  }
+
   async function votarBache(id, latBache, lngBache) {
+    if (estaEnCooldown(id)) {
+      mostrarToast('Ya votaste por este bache. Vuelve en 12 horas.', 'error');
+      return;
+    }
     if (!navigator.geolocation) {
       mostrarToast('Tu navegador no soporta GPS', 'error');
       return;
@@ -448,14 +471,22 @@
           });
           if (!res.ok) throw new Error();
           const data = await res.json();
-          const msg = puntos === 5
-            ? `¡+5 votos! Estás cerca del bache 📍`
-            : `+2 votos registrados`;
-          mostrarToast(msg, 'exito');
-          // Actualizar popup
+          registrarVoto(id);
+          // Actualizar votos en vivo sin recargar
           const b = bachesCargados.find(b => b.id === id);
           if (b) { b.votos = data.votos; }
-          map.closePopup();
+          const spanVotos = document.getElementById('votos-bache-' + id);
+          if (spanVotos) spanVotos.innerHTML = '⚠️ <b>' + data.votos + '</b> votos';
+          const btnVotar = document.getElementById('btn-votar-' + id);
+          if (btnVotar) {
+            btnVotar.disabled = true;
+            btnVotar.textContent = '⏳ Ya votaste';
+            btnVotar.style.background = '#444';
+            btnVotar.style.color = '#888';
+            btnVotar.style.cursor = 'not-allowed';
+          }
+          const msg = puntos === 5 ? '¡+5 votos! Estás cerca del bache 📍' : '+2 votos registrados';
+          mostrarToast(msg, 'exito');
         } catch (e) {
           mostrarToast('Error al votar. Intenta de nuevo.', 'error');
         }
@@ -467,7 +498,7 @@
     );
   }
 
-  async function guardarBache(lat, lng) {
+  async function guardarBache(lat, lng, votosIniciales = 2) {
     if (hayBacheCercano(lat, lng)) {
       mostrarToast('Ya hay un bache reportado aquí', 'info');
       setStatus('Elige cómo reportar un bache');
@@ -477,13 +508,13 @@
       const res = await fetch(API + '/baches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitud: lat, longitud: lng })
+        body: JSON.stringify({ latitud: lat, longitud: lng, votos_iniciales: votosIniciales })
       });
 
       if (!res.ok) throw new Error();
 
       const bache = await res.json();
-      bache.votos = bache.votos || 5;
+      bache.votos = bache.votos || votosIniciales;
       bachesCargados.push(bache);
 
       L.marker([lat, lng], { icon: iconoBache })
@@ -545,7 +576,7 @@
           await votarBache(cercano.id, cercano.latitud, cercano.longitud);
         } else {
           setStatus('Guardando bache...');
-          await guardarBache(latitude, longitude);
+          await guardarBache(latitude, longitude, 5);
         }
         btn.disabled = false;
       },
