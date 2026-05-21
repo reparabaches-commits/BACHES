@@ -324,62 +324,6 @@
   let marcadorTemp = null;
   let bachesCargados = [];
 
-  // ── LOCALSTORAGE helpers ──────────────────────────────
-  function lsGet(k) { try { return localStorage.getItem(k); } catch(e) { return null; } }
-  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
-
-  // Bloqueo crear bache: 24h
-  function puedeCrearBache() {
-    const ts = lsGet('creacion_ts');
-    if (!ts) return true;
-    return (Date.now() - parseInt(ts)) >= 24 * 60 * 60 * 1000;
-  }
-  function msParaCrear() {
-    const ts = lsGet('creacion_ts');
-    if (!ts) return 0;
-    return Math.max(0, parseInt(ts) + 24 * 60 * 60 * 1000 - Date.now());
-  }
-
-  // Bloqueo votar tras crear: 6h
-  function puedeVotar() {
-    const ts = lsGet('creacion_ts');
-    if (!ts) return true;
-    return (Date.now() - parseInt(ts)) >= 6 * 60 * 60 * 1000;
-  }
-  function msParaVotar() {
-    const ts = lsGet('creacion_ts');
-    if (!ts) return 0;
-    return Math.max(0, parseInt(ts) + 6 * 60 * 60 * 1000 - Date.now());
-  }
-
-  // Votos por bache: max 2
-  function votosUsados(id) { return parseInt(lsGet('votos_bache_' + id) || '0'); }
-  function registrarVotoBache(id) { lsSet('votos_bache_' + id, votosUsados(id) + 1); }
-
-  // ── COUNTDOWN ────────────────────────────────────────
-  let countdownInterval = null;
-  function formatTiempo(ms) {
-    if (ms <= 0) return '00:00:00';
-    const h = Math.floor(ms / 3600000);
-    const m = Math.floor((ms % 3600000) / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
-    return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
-  }
-  function iniciarCountdown(getMsFn, label) {
-    if (countdownInterval) clearInterval(countdownInterval);
-    const update = () => {
-      const ms = getMsFn();
-      if (ms <= 0) {
-        clearInterval(countdownInterval);
-        setStatus('Elige cómo reportar un bache');
-        return;
-      }
-      setStatus(label + ' ' + formatTiempo(ms));
-    };
-    update();
-    countdownInterval = setInterval(update, 1000);
-  }
-
   function distanciaMetros(lat1, lng1, lat2, lng2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -478,7 +422,7 @@
   const marcadoresMap = {}; // id -> marker
 
   function popupHtml(bache) {
-    const votado = estaEnCooldown();
+    const votado = estaEnCooldown(bache.id);
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
@@ -490,20 +434,24 @@
       </div>`;
   }
 
+  function estaEnCooldown(id) {
+    const key = 'voto_bache_' + id;
+    const last = localStorage.getItem(key);
+    if (!last) return false;
+    return (Date.now() - parseInt(last)) < 12 * 60 * 60 * 1000;
+  }
 
+  function registrarVoto(id) {
+    localStorage.setItem('voto_bache_' + id, Date.now().toString());
+  }
 
   function popupBache(bache) {
     return popupHtml(bache);
   }
 
   async function votarBache(id, latBache, lngBache) {
-    if (votosUsados(id) >= 2) {
-      mostrarToast('Ya usaste tus 2 votos en este bache.', 'error');
-      return;
-    }
-    if (!puedeVotar()) {
-      mostrarToast('Creaste un bache recientemente. Espera antes de votar.', 'error');
-      iniciarCountdown(msParaVotar, 'Podrás votar en:');
+    if (estaEnCooldown(id)) {
+      mostrarToast('Ya votaste por este bache. Vuelve en 12 horas.', 'error');
       return;
     }
     if (!navigator.geolocation) {
@@ -521,31 +469,21 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ puntos })
           });
+          if (!res.ok) throw new Error();
           const data = await res.json();
-          if (!res.ok) {
-            if (data.error === 'bloqueo_creacion') {
-              mostrarToast('Espera antes de votar tras crear un bache.', 'error');
-              iniciarCountdown(() => data.segundos_restantes * 1000, 'Podrás votar en:');
-            } else if (data.error === 'max_votos_bache') {
-              mostrarToast('Ya usaste tus 2 votos en este bache.', 'error');
-            }
-            return;
-          }
-          registrarVotoBache(id);
+          registrarVoto(id);
+          // Actualizar votos en vivo sin recargar
           const b = bachesCargados.find(b => b.id === id);
-          if (b) b.votos = data.votos;
+          if (b) { b.votos = data.votos; }
           const spanVotos = document.getElementById('votos-bache-' + id);
           if (spanVotos) spanVotos.innerHTML = '⚠️ <b>' + data.votos + '</b> votos';
-          const usadosAhora = votosUsados(id);
           const btnVotar = document.getElementById('btn-votar-' + id);
           if (btnVotar) {
-            if (usadosAhora >= 2) {
-              btnVotar.disabled = true;
-              btnVotar.textContent = '✅ Ya votaste 2 veces';
-              btnVotar.style.background = '#444';
-              btnVotar.style.color = '#888';
-              btnVotar.style.cursor = 'not-allowed';
-            }
+            btnVotar.disabled = true;
+            btnVotar.textContent = '⏳ Ya votaste';
+            btnVotar.style.background = '#444';
+            btnVotar.style.color = '#888';
+            btnVotar.style.cursor = 'not-allowed';
           }
           const msg = puntos === 5 ? '¡+5 votos! Estás cerca del bache 📍' : '+2 votos registrados';
           mostrarToast(msg, 'exito');
@@ -553,17 +491,14 @@
           mostrarToast('Error al votar. Intenta de nuevo.', 'error');
         }
       },
-      () => { mostrarToast('No se pudo obtener tu ubicación', 'error'); },
+      () => {
+        mostrarToast('No se pudo obtener tu ubicación', 'error');
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
   async function guardarBache(lat, lng, votosIniciales = 2) {
-    if (!puedeCrearBache()) {
-      mostrarToast('Solo puedes reportar un bache cada 24 horas.', 'error');
-      iniciarCountdown(msParaCrear, 'Podrás reportar en:');
-      return;
-    }
     if (hayBacheCercano(lat, lng)) {
       mostrarToast('Ya hay un bache reportado aquí', 'info');
       setStatus('Elige cómo reportar un bache');
@@ -576,17 +511,9 @@
         body: JSON.stringify({ latitud: lat, longitud: lng, votos_iniciales: votosIniciales })
       });
 
+      if (!res.ok) throw new Error();
+
       const bache = await res.json();
-      if (!res.ok) {
-        if (bache.error === 'limite_bache') {
-          mostrarToast('Solo puedes reportar un bache cada 24 horas.', 'error');
-          iniciarCountdown(() => bache.segundos_restantes * 1000, 'Podrás reportar en:');
-        } else {
-          mostrarToast('Error al guardar. Intenta de nuevo.', 'error');
-        }
-        setStatus('Elige cómo reportar un bache');
-        return;
-      }
       bache.votos = bache.votos || votosIniciales;
       bachesCargados.push(bache);
 
@@ -600,7 +527,6 @@
       const total = parseInt(document.getElementById('total-baches').textContent) + 1;
       document.getElementById('total-baches').textContent = total;
 
-      lsSet('creacion_ts', Date.now().toString());
       mostrarToast('¡Bache reportado! Gracias 🙌', 'exito');
       setStatus('Elige cómo reportar un bache');
     } catch (e) {
