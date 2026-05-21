@@ -435,13 +435,13 @@
   }
 
   function estaEnCooldown() {
-    const last = localStorage.getItem('ultimo_voto');
+    const last = localStorage.getItem('ultima_accion');
     if (!last) return false;
     return (Date.now() - parseInt(last)) < 6 * 60 * 60 * 1000;
   }
 
-  function registrarVoto() {
-    localStorage.setItem('ultimo_voto', Date.now().toString());
+  function registrarAccion() {
+    localStorage.setItem('ultima_accion', Date.now().toString());
   }
 
   function popupBache(bache) {
@@ -470,7 +470,7 @@
           });
           if (!res.ok) throw new Error();
           const data = await res.json();
-          registrarVoto();
+          registrarAccion();
           // Actualizar votos en vivo sin recargar
           const b = bachesCargados.find(b => b.id === id);
           if (b) { b.votos = data.votos; }
@@ -498,6 +498,11 @@
   }
 
   async function guardarBache(lat, lng, votosIniciales = 2) {
+    if (estaEnCooldown()) {
+      mostrarToast('Debes esperar 6 horas para realizar otra acción.', 'error');
+      setStatus('Elige cómo reportar un bache');
+      return;
+    }
     if (hayBacheCercano(lat, lng)) {
       mostrarToast('Ya hay un bache reportado aquí', 'info');
       setStatus('Elige cómo reportar un bache');
@@ -526,6 +531,7 @@
       const total = parseInt(document.getElementById('total-baches').textContent) + 1;
       document.getElementById('total-baches').textContent = total;
 
+      registrarAccion();
       mostrarToast('¡Bache reportado! Gracias 🙌', 'exito');
       setStatus('Elige cómo reportar un bache');
     } catch (e) {
