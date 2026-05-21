@@ -120,14 +120,22 @@
 <div id="map"></div>
 
 <div id="config-bar">
-  <label>Restricción de votos:</label>
-  <select id="sel-horas">
-    <option value="1">1 hora</option>
-    <option value="3">3 horas</option>
-    <option value="6" selected>6 horas</option>
-    <option value="12">12 horas</option>
-    <option value="24">24 horas</option>
-    <option value="48">48 horas</option>
+  <label>Votos:</label>
+  <select id="sel-votos">
+    <option value="1">1 min</option>
+    <option value="60">1 hora</option>
+    <option value="180">3 horas</option>
+    <option value="360" selected>6 horas</option>
+    <option value="720">12 horas</option>
+    <option value="1440">24 horas</option>
+  </select>
+  <label style="margin-left:8px;">Crear bache:</label>
+  <select id="sel-creacion">
+    <option value="1">1 min</option>
+    <option value="60">1 hora</option>
+    <option value="360">6 horas</option>
+    <option value="720">12 horas</option>
+    <option value="1440" selected>24 horas</option>
   </select>
   <button id="btn-guardar-config" onclick="guardarConfig()">GUARDAR</button>
   <span id="config-status"></span>
