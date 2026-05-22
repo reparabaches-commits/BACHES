@@ -245,17 +245,32 @@
       `${baches.length} baches · ${baches.reduce((s,b) => s + (b.votos||0), 0)} votos totales`;
   }
 
-  function guardarConfig() {
-    const horas = document.getElementById('sel-horas').value;
-    localStorage.setItem('restriccion_horas', horas);
-    document.getElementById('config-status').textContent = `Guardado: ${horas}h`;
-    mostrarToast(`Restricción de votos: ${horas} horas`, 'exito');
-    setTimeout(() => { document.getElementById('config-status').textContent = ''; }, 3000);
+  async function guardarConfig() {
+    const votos = parseInt(document.getElementById('sel-votos').value);
+    const creacion = parseInt(document.getElementById('sel-creacion').value);
+    try {
+      const res = await fetch(API + '/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restriccion_votos: votos, restriccion_creacion: creacion })
+      });
+      if (!res.ok) throw new Error();
+      document.getElementById('config-status').textContent = '✓ Guardado';
+      mostrarToast('Configuración guardada', 'exito');
+      setTimeout(() => { document.getElementById('config-status').textContent = ''; }, 3000);
+    } catch(e) {
+      mostrarToast('Error al guardar', 'error');
+    }
   }
 
-  // Cargar config guardada
-  const horasGuardadas = localStorage.getItem('restriccion_horas');
-  if (horasGuardadas) document.getElementById('sel-horas').value = horasGuardadas;
+  async function cargarConfig() {
+    try {
+      const res = await fetch(API + '/config');
+      const data = await res.json();
+      if (data.restriccion_votos) document.getElementById('sel-votos').value = data.restriccion_votos;
+      if (data.restriccion_creacion) document.getElementById('sel-creacion').value = data.restriccion_creacion;
+    } catch(e) {}
+  }
 
   function centrarUbicacion() {
     if (!navigator.geolocation) { mostrarToast('GPS no disponible', 'error'); return; }
@@ -266,6 +281,7 @@
     );
   }
 
+  cargarConfig();
   cargarBaches();
 </script>
 </body>
