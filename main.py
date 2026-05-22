@@ -59,6 +59,7 @@ def crear_tablas():
     cur.execute("INSERT INTO config (clave, valor) VALUES ('distancia_limite', 50) ON CONFLICT DO NOTHING")
     cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_cerca', 5) ON CONFLICT DO NOTHING")
     cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_lejos', 2) ON CONFLICT DO NOTHING")
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_umbral', 100) ON CONFLICT DO NOTHING")
     conn.commit()
     cur.close()
     conn.close()
@@ -87,9 +88,16 @@ def obtener_baches():
     cur = conn.cursor()
     cur.execute("SELECT id, latitud, longitud, votos, votantes, completado, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
     rows = cur.fetchall()
+    cur.execute("SELECT valor FROM config WHERE clave = 'votos_umbral'")
+    umbral_row = cur.fetchone()
+    umbral = umbral_row[0] if umbral_row else 100
     cur.close()
     conn.close()
-    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "votantes": r[4], "completado": r[5], "fecha_creacion": r[6]} for r in rows]
+    def estado(r):
+        if r[5]: return 'reparado'
+        if r[3] >= umbral: return 'urgente'
+        return 'reportado'
+    return [{"id": r[0], "latitud": r[1], "longitud": r[2], "votos": r[3], "votantes": r[4], "completado": r[5], "estado": estado(r), "fecha_creacion": r[6]} for r in rows]
 
 @app.post("/baches/{id}/votar")
 def votar_bache(id: int, voto: VotoCreate):
@@ -115,6 +123,7 @@ class ConfigUpdate(BaseModel):
     distancia_limite: int = 50
     votos_cerca: int = 5
     votos_lejos: int = 2
+    votos_umbral: int = 100
 
 @app.get("/config")
 def get_config():
@@ -135,6 +144,7 @@ def set_config(cfg: ConfigUpdate):
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'distancia_limite'", (cfg.distancia_limite,))
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_cerca'", (cfg.votos_cerca,))
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_lejos'", (cfg.votos_lejos,))
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_umbral'", (cfg.votos_umbral,))
     conn.commit()
     cur.close()
     conn.close()
