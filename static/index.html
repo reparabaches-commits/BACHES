@@ -462,12 +462,12 @@
     try {
       const res = await fetch(API + '/config');
       const data = await res.json();
-      CFG.restriccion_votos = data.restriccion_votos || 360;
-      CFG.restriccion_creacion = data.restriccion_creacion || 1440;
-      CFG.distancia_limite = data.distancia_limite || 50;
-      CFG.votos_cerca = data.votos_cerca || 5;
-      CFG.votos_lejos = data.votos_lejos || 2;
-      CFG.votos_umbral = data.votos_umbral || 100;
+      CFG.restriccion_votos = data.restriccion_votos ?? 360;
+      CFG.restriccion_creacion = data.restriccion_creacion ?? 1440;
+      CFG.distancia_limite = data.distancia_limite ?? 50;
+      CFG.votos_cerca = data.votos_cerca ?? 5;
+      CFG.votos_lejos = data.votos_lejos ?? 2;
+      CFG.votos_umbral = data.votos_umbral ?? 100;
     } catch(e) {}
   }
 
