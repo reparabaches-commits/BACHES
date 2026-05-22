@@ -280,7 +280,7 @@
     </div>
     <div class="instruccion">
       <span class="ico">🕳</span>
-      <span><b>MARCAR BACHE AQUÍ</b> — Reporta un bache en tu ubicación actual. Si ya hay un bache cerca registrado, suma tu voto automáticamente.</span>
+      <span><b>MARCAR BACHE AQUÍ</b> — Reporta un bache en tu ubicación actual. Si ya hay uno cerca, suma tu voto automáticamente.</span>
     </div>
     <div class="instruccion">
       <span class="ico">🗺</span>
@@ -288,7 +288,7 @@
     </div>
     <div class="instruccion">
       <span class="ico">👍</span>
-      <span><b>VOTAR</b> — Toca un bache en el mapa y vota.</span>
+      <span><b>VOTAR</b> — Toca un bache en el mapa y vota. Si estás a menos de 50 m sumas 5 votos, si estás más lejos sumas 2.</span>
     </div>
     <button id="btn-cerrar-modal" onclick="cerrarModal()">ENTENDIDO</button>
   </div>
@@ -333,7 +333,7 @@
   }
 
   function hayBacheCercano(lat, lng) {
-    return bachesCargados.some(b => distanciaMetros(lat, lng, b.latitud, b.longitud) < 10);
+    return bachesCargados.some(b => distanciaMetros(lat, lng, b.latitud, b.longitud) < 15);
   }
 
   const map = L.map('map', { zoomControl: false }).setView([23.6345, -102.5528], 5);
@@ -561,8 +561,40 @@
       mostrarToast(`Espera ${hR > 0 ? hR + 'h ' : ''}${mR}min antes de votar.`, 'error');
       return;
     }
+    async function ejecutarVoto(puntos, esLejos = false) {
+      try {
+        const res = await fetch(`${API}/baches/${id}/votar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ puntos })
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        registrarAccion();
+        const b = bachesCargados.find(b => b.id === id);
+        if (b) { b.votos = data.votos; }
+        const spanVotos = document.getElementById('votos-bache-' + id);
+        if (spanVotos) spanVotos.innerHTML = '⚠️ <b>' + data.votos + '</b> votos';
+        const btnVotar = document.getElementById('btn-votar-' + id);
+        if (btnVotar) {
+          btnVotar.disabled = true;
+          btnVotar.textContent = '⏳ Ya votaste';
+          btnVotar.style.background = '#444';
+          btnVotar.style.color = '#888';
+          btnVotar.style.cursor = 'not-allowed';
+        }
+        if (b && data.votos >= CFG.votos_umbral && b.estado !== 'urgente' && b.estado !== 'reparado') {
+          b.estado = 'urgente';
+        }
+        const msg = esLejos ? `+${puntos} votos registrados` : `¡+${puntos} votos! Estás cerca del bache 📍`;
+        mostrarToast(msg, 'exito');
+      } catch (e) {
+        mostrarToast('Error al votar. Intenta de nuevo.', 'error');
+      }
+    }
+
     if (!navigator.geolocation) {
-      mostrarToast('Tu navegador no soporta GPS', 'error');
+      await ejecutarVoto(CFG.votos_lejos, true);
       return;
     }
     mostrarToast('Verificando tu ubicación...', 'info');
@@ -570,40 +602,11 @@
       async (pos) => {
         const dist = distanciaMetros(pos.coords.latitude, pos.coords.longitude, latBache, lngBache);
         const puntos = dist <= CFG.distancia_limite ? CFG.votos_cerca : CFG.votos_lejos;
-        try {
-          const res = await fetch(`${API}/baches/${id}/votar`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ puntos })
-          });
-          if (!res.ok) throw new Error();
-          const data = await res.json();
-          registrarAccion();
-          // Actualizar votos en vivo sin recargar
-          const b = bachesCargados.find(b => b.id === id);
-          if (b) { b.votos = data.votos; }
-          const spanVotos = document.getElementById('votos-bache-' + id);
-          if (spanVotos) spanVotos.innerHTML = '⚠️ <b>' + data.votos + '</b> votos';
-          const btnVotar = document.getElementById('btn-votar-' + id);
-          if (btnVotar) {
-            btnVotar.disabled = true;
-            btnVotar.textContent = '⏳ Ya votaste';
-            btnVotar.style.background = '#444';
-            btnVotar.style.color = '#888';
-            btnVotar.style.cursor = 'not-allowed';
-          }
-          const msg = dist <= CFG.distancia_limite ? `¡+${CFG.votos_cerca} votos! Estás cerca del bache 📍` : `+${CFG.votos_lejos} votos registrados`;
-          // Update marker icon if crossed umbral
-          if (b && data.votos >= CFG.votos_umbral && b.estado !== 'urgente' && b.estado !== 'reparado') {
-            b.estado = 'urgente';
-          }
-          mostrarToast(msg, 'exito');
-        } catch (e) {
-          mostrarToast('Error al votar. Intenta de nuevo.', 'error');
-        }
+        await ejecutarVoto(puntos, dist > CFG.distancia_limite);
       },
-      () => {
-        mostrarToast('No se pudo obtener tu ubicación', 'error');
+      async () => {
+        mostrarToast('GPS no disponible, votando con puntos base...', 'info');
+        await ejecutarVoto(CFG.votos_lejos, true);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
