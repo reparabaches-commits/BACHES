@@ -488,7 +488,10 @@
 
   async function votarBache(id, latBache, lngBache) {
     if (estaEnCooldown()) {
-      mostrarToast('Ya votaste por este bache. Vuelve en 6 horas.', 'error');
+      const msR = msVotos() - (Date.now() - parseInt(localStorage.getItem('ultima_accion')));
+      const minR = Math.ceil(msR / 60000);
+      const hR = Math.floor(minR / 60); const mR = minR % 60;
+      mostrarToast(`Espera ${hR > 0 ? hR + 'h ' : ''}${mR}min antes de votar.`, 'error');
       return;
     }
     if (!navigator.geolocation) {
