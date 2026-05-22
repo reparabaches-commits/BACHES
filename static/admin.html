@@ -137,6 +137,15 @@
     <option value="720">12 horas</option>
     <option value="1440" selected>24 horas</option>
   </select>
+  <label style="margin-left:8px;">Dist. límite (m):</label>
+  <input id="inp-distancia" type="number" value="50" min="1" max="500"
+    style="width:60px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
+  <label style="margin-left:8px;">Votos cerca:</label>
+  <input id="inp-votos-cerca" type="number" value="5" min="1" max="100"
+    style="width:50px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
+  <label style="margin-left:8px;">Votos lejos:</label>
+  <input id="inp-votos-lejos" type="number" value="2" min="1" max="100"
+    style="width:50px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
   <button id="btn-guardar-config" onclick="guardarConfig()">GUARDAR</button>
   <span id="config-status"></span>
 </div>
@@ -245,17 +254,38 @@
       `${baches.length} baches · ${baches.reduce((s,b) => s + (b.votos||0), 0)} votos totales`;
   }
 
-  function guardarConfig() {
-    const horas = document.getElementById('sel-horas').value;
-    localStorage.setItem('restriccion_horas', horas);
-    document.getElementById('config-status').textContent = `Guardado: ${horas}h`;
-    mostrarToast(`Restricción de votos: ${horas} horas`, 'exito');
-    setTimeout(() => { document.getElementById('config-status').textContent = ''; }, 3000);
+  async function guardarConfig() {
+    const votos = parseInt(document.getElementById('sel-votos').value);
+    const creacion = parseInt(document.getElementById('sel-creacion').value);
+    const distancia = parseInt(document.getElementById('inp-distancia').value);
+    const votosCerca = parseInt(document.getElementById('inp-votos-cerca').value);
+    const votosLejos = parseInt(document.getElementById('inp-votos-lejos').value);
+    try {
+      const res = await fetch(API + '/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restriccion_votos: votos, restriccion_creacion: creacion, distancia_limite: distancia, votos_cerca: votosCerca, votos_lejos: votosLejos })
+      });
+      if (!res.ok) throw new Error();
+      document.getElementById('config-status').textContent = '✓ Guardado';
+      mostrarToast('Configuración guardada', 'exito');
+      setTimeout(() => { document.getElementById('config-status').textContent = ''; }, 3000);
+    } catch(e) {
+      mostrarToast('Error al guardar', 'error');
+    }
   }
 
-  // Cargar config guardada
-  const horasGuardadas = localStorage.getItem('restriccion_horas');
-  if (horasGuardadas) document.getElementById('sel-horas').value = horasGuardadas;
+  async function cargarConfig() {
+    try {
+      const res = await fetch(API + '/config');
+      const data = await res.json();
+      if (data.restriccion_votos) document.getElementById('sel-votos').value = data.restriccion_votos;
+      if (data.restriccion_creacion) document.getElementById('sel-creacion').value = data.restriccion_creacion;
+      if (data.distancia_limite) document.getElementById('inp-distancia').value = data.distancia_limite;
+      if (data.votos_cerca) document.getElementById('inp-votos-cerca').value = data.votos_cerca;
+      if (data.votos_lejos) document.getElementById('inp-votos-lejos').value = data.votos_lejos;
+    } catch(e) {}
+  }
 
   function centrarUbicacion() {
     if (!navigator.geolocation) { mostrarToast('GPS no disponible', 'error'); return; }
@@ -266,6 +296,7 @@
     );
   }
 
+  cargarConfig();
   cargarBaches();
 </script>
 </body>
