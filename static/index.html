@@ -429,14 +429,21 @@
   const marcadoresMap = {}; // id -> marker
 
   function popupHtml(bache) {
-    const votado = estaEnCooldown();
+    if (bache.completado) {
+      return `
+        <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
+          <span style="font-size:13px;display:block;margin-bottom:6px;">⚠️ <b>${bache.votos || 0}</b> votos</span>
+          <span style="font-size:12px;color:#2ecc71;font-weight:bold;">✅ Bache reparado<br>No admite más votos</span>
+        </div>`;
+    }
+    const cooldown = estaEnCooldown();
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
         <button id="btn-votar-${bache.id}" onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
-          style="margin-top:4px;padding:6px 14px;background:${votado ? '#444' : '#e63946'};color:${votado ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${votado ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
-          ${votado ? 'disabled' : ''}>
-          ${votado ? '⏳ Ya votaste' : '👍 Votar'}
+          style="margin-top:4px;padding:6px 14px;background:${cooldown ? '#444' : '#e63946'};color:${cooldown ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${cooldown ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
+          ${cooldown ? 'disabled' : ''}>
+          ${cooldown ? '⏳ Espera tu turno' : '👍 Votar'}
         </button>
       </div>`;
   }
@@ -534,7 +541,10 @@
       const restante = Math.ceil((last + msCreacion() - Date.now()) / 60000);
       const horas = Math.floor(restante / 60);
       const mins = restante % 60;
-      mostrarToast(`Puedes crear otro bache en ${horas > 0 ? horas + 'h ' : ''}${mins}min`, 'error');
+      const totalMin = Math.ceil(msCreacion() / 60000);
+      const hText = Math.floor(totalMin / 60) > 0 ? Math.floor(totalMin/60) + 'h ' : '';
+      const mText = totalMin % 60 > 0 ? (totalMin % 60) + 'min' : '';
+      mostrarToast(`Puedes crear otro bache en ${hText}${mText}`, 'error');
       setStatus('Elige cómo reportar un bache');
       return;
     }
@@ -556,11 +566,10 @@
       bache.votos = bache.votos || votosIniciales;
       bachesCargados.push(bache);
 
-      const newMarker = L.marker([lat, lng], { icon: iconoBache }).addTo(map);
-      newMarker.on('click', function() {
-        newMarker.bindPopup(popupBache(bache)).openPopup();
-      });
-      newMarker.fire('click');
+      const newMarker = L.marker([lat, lng], { icon: iconoBache })
+        .addTo(map)
+        .bindPopup(() => popupBache(bache), { maxWidth: 200 })
+        .openPopup();
 
       map.setView([lat, lng], 17);
 
@@ -639,10 +648,8 @@
       document.getElementById('total-baches').textContent = baches.length;
       baches.forEach(b => {
         const marker = L.marker([b.latitud, b.longitud], { icon: b.completado ? iconoCompletado : iconoBache })
-          .addTo(map);
-        marker.on('click', function() {
-          marker.bindPopup(popupBache(b)).openPopup();
-        });
+          .addTo(map)
+          .bindPopup(() => popupBache(b), { maxWidth: 200 });
       });
     } catch (e) {
       console.error('Error cargando baches', e);
