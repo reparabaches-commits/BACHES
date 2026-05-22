@@ -346,10 +346,17 @@
   L.control.zoom({ position: 'topright' }).addTo(map);
 
   function iconoEstado(estado) {
+    if (estado === 'reparado') {
+      return L.divIcon({
+        className: '',
+        html: `<div style="width:26px;height:26px;background:#2ecc71;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(46,204,113,0.9);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:bold;color:#fff;line-height:1;">✓</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+    }
     const colores = {
       reportado: { bg: '#f4a261', sombra: 'rgba(244,162,97,0.7)' },
       urgente:   { bg: '#e63946', sombra: 'rgba(230,57,70,0.8)' },
-      reparado:  { bg: '#2ecc71', sombra: 'rgba(46,204,113,0.8)' }
     };
     const c = colores[estado] || colores.reportado;
     return L.divIcon({
