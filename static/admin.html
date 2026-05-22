@@ -301,12 +301,12 @@
     try {
       const res = await fetch(API + '/config');
       const data = await res.json();
-      if (data.restriccion_votos) document.getElementById('sel-votos').value = data.restriccion_votos;
-      if (data.restriccion_creacion) document.getElementById('sel-creacion').value = data.restriccion_creacion;
-      if (data.distancia_limite) document.getElementById('inp-distancia').value = data.distancia_limite;
-      if (data.votos_cerca) document.getElementById('inp-votos-cerca').value = data.votos_cerca;
-      if (data.votos_lejos) document.getElementById('inp-votos-lejos').value = data.votos_lejos;
-      if (data.votos_umbral) document.getElementById('inp-umbral').value = data.votos_umbral;
+      if (data.restriccion_votos != null) document.getElementById('sel-votos').value = data.restriccion_votos;
+      if (data.restriccion_creacion != null) document.getElementById('sel-creacion').value = data.restriccion_creacion;
+      if (data.distancia_limite != null) document.getElementById('inp-distancia').value = data.distancia_limite;
+      if (data.votos_cerca != null) document.getElementById('inp-votos-cerca').value = data.votos_cerca;
+      if (data.votos_lejos != null) document.getElementById('inp-votos-lejos').value = data.votos_lejos;
+      if (data.votos_umbral != null) document.getElementById('inp-umbral').value = data.votos_umbral;
     } catch(e) {}
   }
 
