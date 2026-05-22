@@ -345,19 +345,20 @@
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  const iconoBache = L.divIcon({
-    className: '',
-    html: '<div style="width:14px;height:14px;background:#e63946;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(230,57,70,0.8);"></div>',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7]
-  });
-
-  const iconoCompletado = L.divIcon({
-    className: '',
-    html: '<div style="width:14px;height:14px;background:#2ecc71;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(46,204,113,0.8);"></div>',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7]
-  });
+  function iconoEstado(estado) {
+    const colores = {
+      reportado: { bg: '#f4a261', sombra: 'rgba(244,162,97,0.7)' },
+      urgente:   { bg: '#e63946', sombra: 'rgba(230,57,70,0.8)' },
+      reparado:  { bg: '#2ecc71', sombra: 'rgba(46,204,113,0.8)' }
+    };
+    const c = colores[estado] || colores.reportado;
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:14px;height:14px;background:${c.bg};border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px ${c.sombra};"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+  }
 
   const iconoTemp = L.divIcon({
     className: '',
@@ -428,15 +429,22 @@
 
   const marcadoresMap = {}; // id -> marker
 
+  function etiquetaEstado(estado) {
+    if (estado === 'reparado') return '<span style="color:#2ecc71;font-weight:bold;">✅ Reparado</span>';
+    if (estado === 'urgente')  return '<span style="color:#e63946;font-weight:bold;">🔴 Requiere reparación</span>';
+    return '<span style="color:#f4a261;font-weight:bold;">🟠 Reportado</span>';
+  }
+
   function popupHtml(bache) {
-    if (bache.completado) {
+    if (bache.estado === 'reparado') {
       return `
         <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
           <span style="font-size:13px;display:block;margin-bottom:6px;">⚠️ <b>${bache.votos || 0}</b> votos</span>
-          <span style="font-size:12px;color:#2ecc71;font-weight:bold;">✅ Bache reparado</span>
+          ${etiquetaEstado('reparado')}
         </div>`;
     }
     const cooldown = estaEnCooldown();
+    const estado = bache.estado || 'reportado';
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
@@ -448,7 +456,7 @@
       </div>`;
   }
 
-  let CFG = { restriccion_votos: 360, restriccion_creacion: 1440, distancia_limite: 50, votos_cerca: 5, votos_lejos: 2 };
+  let CFG = { restriccion_votos: 360, restriccion_creacion: 1440, distancia_limite: 50, votos_cerca: 5, votos_lejos: 2, votos_umbral: 100 };
 
   async function cargarConfig() {
     try {
@@ -459,6 +467,7 @@
       CFG.distancia_limite = data.distancia_limite || 50;
       CFG.votos_cerca = data.votos_cerca || 5;
       CFG.votos_lejos = data.votos_lejos || 2;
+      CFG.votos_umbral = data.votos_umbral || 100;
     } catch(e) {}
   }
 
@@ -466,12 +475,14 @@
   function msCreacion() { return CFG.restriccion_creacion * 60 * 1000; }
 
   function estaEnCooldown() {
+    if (CFG.restriccion_votos === 0) return false;
     const last = localStorage.getItem('ultima_accion');
     if (!last) return false;
     return (Date.now() - parseInt(last)) < msVotos();
   }
 
   function puedeCrearBache() {
+    if (CFG.restriccion_creacion === 0) return true;
     const last = localStorage.getItem('ultima_creacion');
     if (!last) return true;
     return (Date.now() - parseInt(last)) >= msCreacion();
@@ -529,6 +540,10 @@
             btnVotar.style.cursor = 'not-allowed';
           }
           const msg = dist <= CFG.distancia_limite ? `¡+${CFG.votos_cerca} votos! Estás cerca del bache 📍` : `+${CFG.votos_lejos} votos registrados`;
+          // Update marker icon if crossed umbral
+          if (b && data.votos >= CFG.votos_umbral && b.estado !== 'urgente' && b.estado !== 'reparado') {
+            b.estado = 'urgente';
+          }
           mostrarToast(msg, 'exito');
         } catch (e) {
           mostrarToast('Error al votar. Intenta de nuevo.', 'error');
@@ -572,7 +587,7 @@
       bache.votos = bache.votos || votosIniciales;
       bachesCargados.push(bache);
 
-      const newMarker = L.marker([lat, lng], { icon: iconoBache })
+      const newMarker = L.marker([lat, lng], { icon: iconoEstado(bache.estado || 'reportado') })
         .addTo(map)
         .bindPopup(() => popupBache(bache), { maxWidth: 200 })
         .openPopup();
@@ -653,7 +668,7 @@
       bachesCargados = baches;
       document.getElementById('total-baches').textContent = baches.length;
       baches.forEach(b => {
-        const marker = L.marker([b.latitud, b.longitud], { icon: b.completado ? iconoCompletado : iconoBache })
+        const marker = L.marker([b.latitud, b.longitud], { icon: iconoEstado(b.estado || 'reportado') })
           .addTo(map)
           .bindPopup(() => popupBache(b), { maxWidth: 200 });
       });
