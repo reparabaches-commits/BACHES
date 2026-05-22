@@ -56,6 +56,9 @@ def crear_tablas():
     """)
     cur.execute("INSERT INTO config (clave, valor) VALUES ('restriccion_votos', 360) ON CONFLICT DO NOTHING")
     cur.execute("INSERT INTO config (clave, valor) VALUES ('restriccion_creacion', 1440) ON CONFLICT DO NOTHING")
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('distancia_limite', 50) ON CONFLICT DO NOTHING")
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_cerca', 5) ON CONFLICT DO NOTHING")
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_lejos', 2) ON CONFLICT DO NOTHING")
     conn.commit()
     cur.close()
     conn.close()
@@ -109,6 +112,9 @@ def votar_bache(id: int, voto: VotoCreate):
 class ConfigUpdate(BaseModel):
     restriccion_votos: int
     restriccion_creacion: int
+    distancia_limite: int = 50
+    votos_cerca: int = 5
+    votos_lejos: int = 2
 
 @app.get("/config")
 def get_config():
@@ -126,6 +132,9 @@ def set_config(cfg: ConfigUpdate):
     cur = conn.cursor()
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'restriccion_votos'", (cfg.restriccion_votos,))
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'restriccion_creacion'", (cfg.restriccion_creacion,))
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'distancia_limite'", (cfg.distancia_limite,))
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_cerca'", (cfg.votos_cerca,))
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_lejos'", (cfg.votos_lejos,))
     conn.commit()
     cur.close()
     conn.close()
