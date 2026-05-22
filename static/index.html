@@ -433,7 +433,7 @@
       return `
         <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
           <span style="font-size:13px;display:block;margin-bottom:6px;">⚠️ <b>${bache.votos || 0}</b> votos</span>
-          <span style="font-size:12px;color:#2ecc71;font-weight:bold;">✅ Bache reparado<br>No admite más votos</span>
+          <span style="font-size:12px;color:#2ecc71;font-weight:bold;">✅ Bache reparado</span>
         </div>`;
     }
     const cooldown = estaEnCooldown();
@@ -443,7 +443,7 @@
         <button id="btn-votar-${bache.id}" onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
           style="margin-top:4px;padding:6px 14px;background:${cooldown ? '#444' : '#e63946'};color:${cooldown ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${cooldown ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
           ${cooldown ? 'disabled' : ''}>
-          ${cooldown ? '⏳ Espera tu turno' : '👍 Votar'}
+          ${cooldown ? '⏳ ' + (() => { const ms = msVotos() - (Date.now() - parseInt(localStorage.getItem('ultima_accion')||'0')); const m = Math.ceil(ms/60000); const h = Math.floor(m/60); return (h>0?h+'h ':'')+(m%60)+'min'; })() : '👍 Votar'}
         </button>
       </div>`;
   }
