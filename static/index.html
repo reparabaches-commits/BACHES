@@ -451,9 +451,12 @@
     }
     const cooldown = estaEnCooldown();
     const estado = bache.estado || 'reportado';
+    const restantes = Math.max(0, CFG.votos_por_sesion - votosEnSesion());
+    const labelVotos = restantes === 1 ? '1 voto restante' : restantes + ' votos restantes';
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
+        ${!cooldown ? '<span style="font-size:11px;color:#f4a261;display:block;margin-bottom:4px;">' + labelVotos + '</span>' : ''}
         <button id="btn-votar-${bache.id}" onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
           style="margin-top:4px;padding:6px 14px;background:${cooldown ? '#444' : '#e63946'};color:${cooldown ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${cooldown ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
           ${cooldown ? 'disabled' : ''}>
