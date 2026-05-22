@@ -154,6 +154,9 @@
   <label style="margin-left:8px;">Votos por sesión:</label>
   <input id="inp-votos-sesion" type="number" value="1" min="1" max="50"
     style="width:50px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
+  <label style="margin-left:8px;">Baches por sesión:</label>
+  <input id="inp-baches-sesion" type="number" value="1" min="1" max="50"
+    style="width:50px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
   <button id="btn-guardar-config" onclick="guardarConfig()">GUARDAR</button>
   <span id="config-status"></span>
 </div>
@@ -289,7 +292,7 @@
       const res = await fetch(API + '/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restriccion_votos: votos, restriccion_creacion: creacion, distancia_limite: distancia, votos_cerca: votosCerca, votos_lejos: votosLejos, votos_umbral: parseInt(document.getElementById('inp-umbral').value), votos_por_sesion: parseInt(document.getElementById('inp-votos-sesion').value) })
+        body: JSON.stringify({ restriccion_votos: votos, restriccion_creacion: creacion, distancia_limite: distancia, votos_cerca: votosCerca, votos_lejos: votosLejos, votos_umbral: parseInt(document.getElementById('inp-umbral').value), votos_por_sesion: parseInt(document.getElementById('inp-votos-sesion').value), baches_por_sesion: parseInt(document.getElementById('inp-baches-sesion').value) })
       });
       if (!res.ok) throw new Error();
       document.getElementById('config-status').textContent = '✓ Guardado';
@@ -311,6 +314,7 @@
       if (data.votos_lejos != null) document.getElementById('inp-votos-lejos').value = data.votos_lejos;
       if (data.votos_umbral != null) document.getElementById('inp-umbral').value = data.votos_umbral;
       if (data.votos_por_sesion != null) document.getElementById('inp-votos-sesion').value = data.votos_por_sesion;
+      if (data.baches_por_sesion != null) document.getElementById('inp-baches-sesion').value = data.baches_por_sesion;
     } catch(e) {}
   }
 
