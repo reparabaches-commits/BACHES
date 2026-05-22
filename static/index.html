@@ -482,10 +482,11 @@
   function msCreacion() { return CFG.restriccion_creacion * 60 * 1000; }
 
   function votosEnSesion() {
-    const last = localStorage.getItem('ultima_accion');
-    if (!last) return 0;
-    if ((Date.now() - parseInt(last)) >= msVotos()) {
+    const inicio = localStorage.getItem('sesion_inicio');
+    if (!inicio) return 0;
+    if ((Date.now() - parseInt(inicio)) >= msVotos()) {
       localStorage.removeItem('votos_sesion');
+      localStorage.removeItem('sesion_inicio');
       return 0;
     }
     return parseInt(localStorage.getItem('votos_sesion') || '0');
@@ -493,10 +494,12 @@
 
   function estaEnCooldown() {
     if (CFG.restriccion_votos === 0) return false;
+    // Cooldown activo si ya agotó votos de sesión
+    if (votosEnSesion() >= CFG.votos_por_sesion && CFG.votos_por_sesion > 0) return true;
+    // Cooldown activo si está en tiempo de espera tras agotar sesión
     const last = localStorage.getItem('ultima_accion');
     if (!last) return false;
-    if ((Date.now() - parseInt(last)) >= msVotos()) return false;
-    return votosEnSesion() >= CFG.votos_por_sesion;
+    return (Date.now() - parseInt(last)) < msVotos();
   }
 
   function puedeCrearBache() {
@@ -507,6 +510,9 @@
   }
 
   function registrarAccion() {
+    if (!localStorage.getItem('sesion_inicio')) {
+      localStorage.setItem('sesion_inicio', Date.now().toString());
+    }
     const sesion = votosEnSesion() + 1;
     localStorage.setItem('votos_sesion', sesion.toString());
     if (sesion >= CFG.votos_por_sesion) {
