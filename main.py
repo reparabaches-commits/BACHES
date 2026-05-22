@@ -61,6 +61,7 @@ def crear_tablas():
     cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_lejos', 2) ON CONFLICT DO NOTHING")
     cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_umbral', 100) ON CONFLICT DO NOTHING")
     cur.execute("INSERT INTO config (clave, valor) VALUES ('votos_por_sesion', 1) ON CONFLICT DO NOTHING")
+    cur.execute("INSERT INTO config (clave, valor) VALUES ('baches_por_sesion', 1) ON CONFLICT DO NOTHING")
     conn.commit()
     cur.close()
     conn.close()
@@ -126,6 +127,7 @@ class ConfigUpdate(BaseModel):
     votos_lejos: int = 2
     votos_umbral: int = 100
     votos_por_sesion: int = 1
+    baches_por_sesion: int = 1
 
 @app.get("/config")
 def get_config():
@@ -148,6 +150,7 @@ def set_config(cfg: ConfigUpdate):
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_lejos'", (cfg.votos_lejos,))
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_umbral'", (cfg.votos_umbral,))
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'votos_por_sesion'", (cfg.votos_por_sesion,))
+    cur.execute("UPDATE config SET valor = %s WHERE clave = 'baches_por_sesion'", (cfg.baches_por_sesion,))
     conn.commit()
     cur.close()
     conn.close()
