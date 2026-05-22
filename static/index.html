@@ -462,7 +462,7 @@
       </div>`;
   }
 
-  let CFG = { restriccion_votos: 360, restriccion_creacion: 1440, distancia_limite: 50, votos_cerca: 5, votos_lejos: 2, votos_umbral: 100 };
+  let CFG = { restriccion_votos: 360, restriccion_creacion: 1440, distancia_limite: 50, votos_cerca: 5, votos_lejos: 2, votos_umbral: 100, votos_por_sesion: 1 };
 
   async function cargarConfig() {
     try {
@@ -474,17 +474,29 @@
       CFG.votos_cerca = data.votos_cerca ?? 5;
       CFG.votos_lejos = data.votos_lejos ?? 2;
       CFG.votos_umbral = data.votos_umbral ?? 100;
+      CFG.votos_por_sesion = data.votos_por_sesion ?? 1;
     } catch(e) {}
   }
 
   function msVotos() { return CFG.restriccion_votos * 60 * 1000; }
   function msCreacion() { return CFG.restriccion_creacion * 60 * 1000; }
 
+  function votosEnSesion() {
+    const last = localStorage.getItem('ultima_accion');
+    if (!last) return 0;
+    if ((Date.now() - parseInt(last)) >= msVotos()) {
+      localStorage.removeItem('votos_sesion');
+      return 0;
+    }
+    return parseInt(localStorage.getItem('votos_sesion') || '0');
+  }
+
   function estaEnCooldown() {
     if (CFG.restriccion_votos === 0) return false;
     const last = localStorage.getItem('ultima_accion');
     if (!last) return false;
-    return (Date.now() - parseInt(last)) < msVotos();
+    if ((Date.now() - parseInt(last)) >= msVotos()) return false;
+    return votosEnSesion() >= CFG.votos_por_sesion;
   }
 
   function puedeCrearBache() {
@@ -495,7 +507,11 @@
   }
 
   function registrarAccion() {
-    localStorage.setItem('ultima_accion', Date.now().toString());
+    const sesion = votosEnSesion() + 1;
+    localStorage.setItem('votos_sesion', sesion.toString());
+    if (sesion >= CFG.votos_por_sesion) {
+      localStorage.setItem('ultima_accion', Date.now().toString());
+    }
   }
 
   function registrarCreacion() {
