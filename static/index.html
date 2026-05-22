@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
@@ -11,254 +10,251 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-```
-body {
-  font-family: 'Nunito', sans-serif;
-  background: #0f0f0f;
-  color: #fff;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-#header {
-  padding: 10px 16px;
-  background: #0f0f0f;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid #222;
-  flex-shrink: 0;
-}
+    #header {
+      padding: 10px 16px;
+      background: #0f0f0f;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
+    }
 
-.logo-circle {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #e63946;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 16px;
-  color: #fff;
-  flex-shrink: 0;
-}
+    .logo-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #e63946;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      color: #fff;
+      flex-shrink: 0;
+    }
 
-#header h1 {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  letter-spacing: 1px;
-  color: #fff;
-  line-height: 1;
-}
+    #header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 1px;
+      color: #fff;
+      line-height: 1;
+    }
 
-#counter-badge {
-  margin-left: auto;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 12px;
-  color: #e63946;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-}
+    #counter-badge {
+      margin-left: auto;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #e63946;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
 
-.dot-red {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #e63946;
-  animation: pulso 1.5s infinite;
-}
+    .dot-red {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e63946;
+      animation: pulso 1.5s infinite;
+    }
 
-@keyframes pulso {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
+    @keyframes pulso {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
 
-#map { flex: 1; width: 100%; z-index: 1; }
+    #map { flex: 1; width: 100%; z-index: 1; }
 
-#bottom-bar {
-  background: #0f0f0f;
-  border-top: 1px solid #222;
-  padding: 12px 16px;
-  flex-shrink: 0;
-  display: flex;
-  gap: 10px;
-}
+    #bottom-bar {
+      background: #0f0f0f;
+      border-top: 1px solid #222;
+      padding: 12px 16px;
+      flex-shrink: 0;
+      display: flex;
+      gap: 10px;
+    }
 
-.btn-action {
-  flex: 1;
-  padding: 14px 8px;
-  background: #e63946;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 17px;
-  letter-spacing: 1px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: background 0.2s, transform 0.1s;
-}
+    .btn-action {
+      flex: 1;
+      padding: 14px 8px;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.2s, transform 0.1s;
+    }
 
-.btn-action.secondary {
-  background: #1a1a1a;
-  border: 1px solid #444;
-  color: #ccc;
-}
+    .btn-action.secondary {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ccc;
+    }
 
-.btn-action.secondary.active {
-  background: #2a2a2a;
-  border-color: #e63946;
-  color: #e63946;
-}
+    .btn-action.secondary.active {
+      background: #2a2a2a;
+      border-color: #e63946;
+      color: #e63946;
+    }
 
-.btn-action:active { transform: scale(0.97); }
-.btn-action:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .btn-action:active { transform: scale(0.97); }
+    .btn-action:disabled { background: #333; color: #666; cursor: not-allowed; }
 
-#status-msg {
-  text-align: center;
-  font-size: 12px;
-  color: #666;
-  margin-top: 8px;
-  min-height: 16px;
-  padding: 0 4px;
-}
+    #status-msg {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+      min-height: 16px;
+      padding: 0 4px;
+    }
 
-#status-wrapper {
-  flex-shrink: 0;
-  padding: 0 16px 10px;
-  background: #0f0f0f;
-}
+    #status-wrapper {
+      flex-shrink: 0;
+      padding: 0 16px 10px;
+      background: #0f0f0f;
+    }
 
-#toast {
-  position: fixed;
-  bottom: 130px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: #1a1a1a;
-  border: 1px solid #333;
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 13px;
-  opacity: 0;
-  transition: all 0.3s;
-  z-index: 9999;
-  white-space: nowrap;
-  pointer-events: none;
-}
+    #toast {
+      position: fixed;
+      bottom: 130px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 9999;
+      white-space: nowrap;
+      pointer-events: none;
+    }
 
-#toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
 
-#toast.exito { border-color: #2ecc71; color: #2ecc71; }
-#toast.error { border-color: #e63946; color: #e63946; }
-#toast.info { border-color: #f4a261; color: #f4a261; }
+    #toast.exito { border-color: #2ecc71; color: #2ecc71; }
+    #toast.error { border-color: #e63946; color: #e63946; }
+    #toast.info { border-color: #f4a261; color: #f4a261; }
 
-/* Cursor crosshair cuando modo manual está activo */
-#map.modo-manual { cursor: crosshair; }
+    /* Cursor crosshair cuando modo manual está activo */
+    #map.modo-manual { cursor: crosshair; }
 
-/* Marcador temporal */
-.marcador-temp {
-  width: 18px;
-  height: 18px;
-  background: #f4a261;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 10px rgba(244,162,97,0.9);
-  animation: pulso-temp 1s infinite;
-}
+    /* Marcador temporal */
+    .marcador-temp {
+      width: 18px;
+      height: 18px;
+      background: #f4a261;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px rgba(244,162,97,0.9);
+      animation: pulso-temp 1s infinite;
+    }
 
-@keyframes pulso-temp {
-  0%, 100% { box-shadow: 0 0 6px rgba(244,162,97,0.8); }
-  50% { box-shadow: 0 0 16px rgba(244,162,97,1); }
-}
+    @keyframes pulso-temp {
+      0%, 100% { box-shadow: 0 0 6px rgba(244,162,97,0.8); }
+      50% { box-shadow: 0 0 16px rgba(244,162,97,1); }
+    }
 
-/* Modal instrucciones */
-#modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.75);
-  z-index: 9998;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-#modal-overlay.hidden { display: none; }
+    /* Modal instrucciones */
+    #modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #modal-overlay.hidden { display: none; }
 
-#modal-box {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 16px;
-  padding: 24px 20px;
-  max-width: 340px;
-  width: 100%;
-  color: #fff;
-}
-#modal-box h2 {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 22px;
-  letter-spacing: 1px;
-  margin-bottom: 16px;
-  color: #e63946;
-  text-align: center;
-}
-.instruccion {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  font-size: 13px;
-  line-height: 1.4;
-  color: #ccc;
-}
-.instruccion span.ico { font-size: 18px; flex-shrink: 0; }
-#btn-cerrar-modal {
-  width: 100%;
-  margin-top: 18px;
-  padding: 12px;
-  background: #e63946;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 17px;
-  letter-spacing: 1px;
-  cursor: pointer;
-}
+    #modal-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 24px 20px;
+      max-width: 340px;
+      width: 100%;
+      color: #fff;
+    }
+    #modal-box h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      color: #e63946;
+      text-align: center;
+    }
+    .instruccion {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+    .instruccion span.ico { font-size: 18px; flex-shrink: 0; }
+    #btn-cerrar-modal {
+      width: 100%;
+      margin-top: 18px;
+      padding: 12px;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 17px;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
 
-/* Botón ayuda flotante */
-#btn-ayuda {
-  position: fixed;
-  top: 60px;
-  left: 12px;
-  z-index: 999;
-  background: #1a1a1a;
-  border: 1px solid #444;
-  color: #ccc;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 15px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-```
-
+    /* Botón ayuda flotante */
+    #btn-ayuda {
+      position: fixed;
+      top: 60px;
+      left: 12px;
+      z-index: 999;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -275,7 +271,6 @@ body {
 </div>
 
 <!-- Modal instrucciones -->
-
 <div id="modal-overlay">
   <div id="modal-box">
     <h2>¿Cómo funciona?</h2>
@@ -322,7 +317,6 @@ body {
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
   const API = "https://baches-production.up.railway.app";
 
@@ -689,6 +683,5 @@ body {
     );
   }
 </script>
-
 </body>
 </html>
