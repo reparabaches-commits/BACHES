@@ -429,21 +429,14 @@
   const marcadoresMap = {}; // id -> marker
 
   function popupHtml(bache) {
-    if (bache.completado) {
-      return `
-        <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
-          <span style="font-size:13px;display:block;margin-bottom:6px;">⚠️ <b>${bache.votos || 0}</b> votos</span>
-          <span style="font-size:12px;color:#2ecc71;font-weight:bold;">✅ Bache reparado</span>
-        </div>`;
-    }
-    const cooldown = estaEnCooldown();
+    const votado = estaEnCooldown();
     return `
       <div style="font-family:'Nunito',sans-serif;min-width:140px;text-align:center;">
         <span id="votos-bache-${bache.id}" style="font-size:13px;margin:4px 0;display:block;">⚠️ <b>${bache.votos || 0}</b> votos</span>
         <button id="btn-votar-${bache.id}" onclick="votarBache(${bache.id}, ${bache.latitud}, ${bache.longitud})"
-          style="margin-top:4px;padding:6px 14px;background:${cooldown ? '#444' : '#e63946'};color:${cooldown ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${cooldown ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
-          ${cooldown ? 'disabled' : ''}>
-          ${cooldown ? '⏳ ' + (() => { const ms = msVotos() - (Date.now() - parseInt(localStorage.getItem('ultima_accion')||'0')); const m = Math.ceil(ms/60000); const h = Math.floor(m/60); return (h>0?h+'h ':'')+(m%60)+'min'; })() : '👍 Votar'}
+          style="margin-top:4px;padding:6px 14px;background:${votado ? '#444' : '#e63946'};color:${votado ? '#888' : '#fff'};border:none;border-radius:8px;cursor:${votado ? 'not-allowed' : 'pointer'};font-weight:bold;font-size:13px;"
+          ${votado ? 'disabled' : ''}>
+          ${votado ? '⏳ Ya votaste' : '👍 Votar'}
         </button>
       </div>`;
   }
@@ -480,6 +473,7 @@
 
   function registrarCreacion() {
     localStorage.setItem('ultima_creacion', Date.now().toString());
+    localStorage.setItem('ultima_accion', Date.now().toString());
   }
 
   function popupBache(bache) {
@@ -488,10 +482,7 @@
 
   async function votarBache(id, latBache, lngBache) {
     if (estaEnCooldown()) {
-      const msR = msVotos() - (Date.now() - parseInt(localStorage.getItem('ultima_accion')));
-      const minR = Math.ceil(msR / 60000);
-      const hR = Math.floor(minR / 60); const mR = minR % 60;
-      mostrarToast(`Espera ${hR > 0 ? hR + 'h ' : ''}${mR}min antes de votar.`, 'error');
+      mostrarToast('Ya votaste por este bache. Vuelve en 6 horas.', 'error');
       return;
     }
     if (!navigator.geolocation) {
@@ -544,10 +535,7 @@
       const restante = Math.ceil((last + msCreacion() - Date.now()) / 60000);
       const horas = Math.floor(restante / 60);
       const mins = restante % 60;
-      const totalMin = Math.ceil(msCreacion() / 60000);
-      const hText = Math.floor(totalMin / 60) > 0 ? Math.floor(totalMin/60) + 'h ' : '';
-      const mText = totalMin % 60 > 0 ? (totalMin % 60) + 'min' : '';
-      mostrarToast(`Puedes crear otro bache en ${hText}${mText}`, 'error');
+      mostrarToast(`Puedes crear otro bache en ${horas > 0 ? horas + 'h ' : ''}${mins}min`, 'error');
       setStatus('Elige cómo reportar un bache');
       return;
     }
@@ -569,9 +557,9 @@
       bache.votos = bache.votos || votosIniciales;
       bachesCargados.push(bache);
 
-      const newMarker = L.marker([lat, lng], { icon: iconoBache })
+      L.marker([lat, lng], { icon: iconoBache })
         .addTo(map)
-        .bindPopup(() => popupBache(bache), { maxWidth: 200 })
+        .bindPopup(popupBache(bache))
         .openPopup();
 
       map.setView([lat, lng], 17);
@@ -650,9 +638,9 @@
       bachesCargados = baches;
       document.getElementById('total-baches').textContent = baches.length;
       baches.forEach(b => {
-        const marker = L.marker([b.latitud, b.longitud], { icon: b.completado ? iconoCompletado : iconoBache })
+        L.marker([b.latitud, b.longitud], { icon: b.completado ? iconoCompletado : iconoBache })
           .addTo(map)
-          .bindPopup(() => popupBache(b), { maxWidth: 200 });
+          .bindPopup(popupBache(b));
       });
     } catch (e) {
       console.error('Error cargando baches', e);
