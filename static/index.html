@@ -462,7 +462,7 @@
       </div>`;
   }
 
-  let CFG = { restriccion_votos: 360, restriccion_creacion: 1440, distancia_limite: 50, votos_cerca: 5, votos_lejos: 2, votos_umbral: 100, votos_por_sesion: 1 };
+  let CFG = { restriccion_votos: 360, restriccion_creacion: 1440, distancia_limite: 50, votos_cerca: 5, votos_lejos: 2, votos_umbral: 100, votos_por_sesion: 1, baches_por_sesion: 1 };
 
   async function cargarConfig() {
     try {
@@ -475,11 +475,23 @@
       CFG.votos_lejos = data.votos_lejos ?? 2;
       CFG.votos_umbral = data.votos_umbral ?? 100;
       CFG.votos_por_sesion = data.votos_por_sesion ?? 1;
+      CFG.baches_por_sesion = data.baches_por_sesion ?? 1;
     } catch(e) {}
   }
 
   function msVotos() { return CFG.restriccion_votos * 60 * 1000; }
   function msCreacion() { return CFG.restriccion_creacion * 60 * 1000; }
+
+  function bachesEnSesion() {
+    const inicio = localStorage.getItem('sesion_baches_inicio');
+    if (!inicio) return 0;
+    if ((Date.now() - parseInt(inicio)) >= msCreacion()) {
+      localStorage.removeItem('baches_sesion');
+      localStorage.removeItem('sesion_baches_inicio');
+      return 0;
+    }
+    return parseInt(localStorage.getItem('baches_sesion') || '0');
+  }
 
   function votosEnSesion() {
     const inicio = localStorage.getItem('sesion_inicio');
@@ -504,9 +516,12 @@
 
   function puedeCrearBache() {
     if (CFG.restriccion_creacion === 0) return true;
-    const last = localStorage.getItem('ultima_creacion');
-    if (!last) return true;
-    return (Date.now() - parseInt(last)) >= msCreacion();
+    if (bachesEnSesion() >= CFG.baches_por_sesion) {
+      const last = localStorage.getItem('ultima_creacion');
+      if (!last) return true;
+      return (Date.now() - parseInt(last)) >= msCreacion();
+    }
+    return true;
   }
 
   function registrarAccion() {
@@ -521,7 +536,14 @@
   }
 
   function registrarCreacion() {
-    localStorage.setItem('ultima_creacion', Date.now().toString());
+    if (!localStorage.getItem('sesion_baches_inicio')) {
+      localStorage.setItem('sesion_baches_inicio', Date.now().toString());
+    }
+    const sesion = bachesEnSesion() + 1;
+    localStorage.setItem('baches_sesion', sesion.toString());
+    if (sesion >= CFG.baches_por_sesion) {
+      localStorage.setItem('ultima_creacion', Date.now().toString());
+    }
   }
 
   function popupBache(bache) {
