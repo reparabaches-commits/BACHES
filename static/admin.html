@@ -122,6 +122,7 @@
 <div id="config-bar">
   <label>Votos:</label>
   <select id="sel-votos">
+    <option value="0">Sin restricción</option>
     <option value="1">1 min</option>
     <option value="60">1 hora</option>
     <option value="180">3 horas</option>
@@ -131,6 +132,7 @@
   </select>
   <label style="margin-left:8px;">Crear bache:</label>
   <select id="sel-creacion">
+    <option value="0">Sin restricción</option>
     <option value="1">1 min</option>
     <option value="60">1 hora</option>
     <option value="360">6 horas</option>
@@ -146,6 +148,9 @@
   <label style="margin-left:8px;">Votos lejos:</label>
   <input id="inp-votos-lejos" type="number" value="2" min="1" max="100"
     style="width:50px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
+  <label style="margin-left:8px;">Umbral urgente:</label>
+  <input id="inp-umbral" type="number" value="100" min="1"
+    style="width:65px;background:#1a1a1a;border:1px solid #444;color:#fff;border-radius:8px;padding:6px 8px;font-size:13px;"/>
   <button id="btn-guardar-config" onclick="guardarConfig()">GUARDAR</button>
   <span id="config-status"></span>
 </div>
@@ -161,16 +166,25 @@
     attribution: '© OpenStreetMap', maxZoom: 19
   }).addTo(map);
 
-  const iconoNormal = L.divIcon({
-    className: '',
-    html: '<div style="width:14px;height:14px;background:#e63946;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(230,57,70,0.8);"></div>',
-    iconSize: [14,14], iconAnchor: [7,7]
-  });
-  const iconoCompletado = L.divIcon({
-    className: '',
-    html: '<div style="width:14px;height:14px;background:#2ecc71;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(46,204,113,0.8);"></div>',
-    iconSize: [14,14], iconAnchor: [7,7]
-  });
+  function iconoEstado(estado) {
+    if (estado === 'reparado') {
+      return L.divIcon({
+        className: '',
+        html: `<div style="width:22px;height:22px;background:#2ecc71;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(46,204,113,0.8);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;">✓</div>`,
+        iconSize: [22,22], iconAnchor: [11,11]
+      });
+    }
+    const colores = {
+      reportado: { bg: '#f4a261', sombra: 'rgba(244,162,97,0.7)' },
+      urgente:   { bg: '#e63946', sombra: 'rgba(230,57,70,0.8)' },
+    };
+    const c = colores[estado] || colores.reportado;
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:14px;height:14px;background:${c.bg};border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px ${c.sombra};"></div>`,
+      iconSize: [14,14], iconAnchor: [7,7]
+    });
+  }
 
   let marcadores = {}; // id -> marker
   let baches = [];
@@ -182,14 +196,21 @@
     setTimeout(() => { t.className = ''; }, 3000);
   }
 
+  function etiquetaEstado(estado) {
+    if (estado === 'reparado') return '<span style="color:#2ecc71;">✅ Reparado</span>';
+    if (estado === 'urgente')  return '<span style="color:#e63946;">🔴 Requiere reparación</span>';
+    return '<span style="color:#f4a261;">🟠 Reportado</span>';
+  }
+
   function popupAdmin(b) {
-    const completado = b.completado;
+    const reparado = b.estado === 'reparado';
     return `
       <div class="popup-admin">
+        <div class="votos-line">${etiquetaEstado(b.estado || 'reportado')}</div>
         <div class="votos-line">⚠️ <b>${b.votos || 0}</b> votos · 👥 <b>${b.votantes || 0}</b> personas</div>
         <div class="btn-row">
-          <button class="btn-completar" onclick="marcarCompletado(${b.id})" ${completado ? 'disabled' : ''}>
-            ${completado ? '✅ Completado' : '✔ Completar'}
+          <button class="btn-completar" onclick="marcarCompletado(${b.id})" ${reparado ? 'disabled' : ''}>
+            ${reparado ? '✅ Reparado' : '✔ Marcar reparado'}
           </button>
           <button class="btn-eliminar" onclick="eliminarBache(${b.id})">🗑 Eliminar</button>
         </div>
@@ -206,7 +227,7 @@
         `${baches.length} baches · ${baches.reduce((s,b) => s + (b.votos||0), 0)} votos totales`;
 
       baches.forEach(b => {
-        const icono = b.completado ? iconoCompletado : iconoNormal;
+        const icono = iconoEstado(b.estado || 'reportado');
         const marker = L.marker([b.latitud, b.longitud], { icon: icono })
           .addTo(map)
           .bindPopup(popupAdmin(b));
@@ -239,7 +260,8 @@
       const b = baches.find(b => b.id === id);
       if (b) {
         b.completado = true;
-        marcadores[id].setIcon(iconoCompletado);
+        b.estado = 'reparado';
+        marcadores[id].setIcon(iconoEstado('reparado'));
         marcadores[id].setPopupContent(popupAdmin(b));
       }
       map.closePopup();
@@ -264,7 +286,7 @@
       const res = await fetch(API + '/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restriccion_votos: votos, restriccion_creacion: creacion, distancia_limite: distancia, votos_cerca: votosCerca, votos_lejos: votosLejos })
+        body: JSON.stringify({ restriccion_votos: votos, restriccion_creacion: creacion, distancia_limite: distancia, votos_cerca: votosCerca, votos_lejos: votosLejos, votos_umbral: parseInt(document.getElementById('inp-umbral').value) })
       });
       if (!res.ok) throw new Error();
       document.getElementById('config-status').textContent = '✓ Guardado';
@@ -284,6 +306,7 @@
       if (data.distancia_limite) document.getElementById('inp-distancia').value = data.distancia_limite;
       if (data.votos_cerca) document.getElementById('inp-votos-cerca').value = data.votos_cerca;
       if (data.votos_lejos) document.getElementById('inp-votos-lejos').value = data.votos_lejos;
+      if (data.votos_umbral) document.getElementById('inp-umbral').value = data.votos_umbral;
     } catch(e) {}
   }
 
