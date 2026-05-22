@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from database import get_db_connection
 
 app = FastAPI()
 
@@ -26,7 +25,13 @@ class VotoCreate(BaseModel):
 
 @app.on_event("startup")
 def crear_tablas():
-    conn = get_db_connection()
+    global connection_pool
+    connection_pool = pool.ThreadedConnectionPool(
+        minconn=2,
+        maxconn=20,
+        dsn=os.environ.get("DATABASE_URL")
+    )
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS baches (
@@ -64,7 +69,7 @@ def crear_tablas():
     cur.execute("INSERT INTO config (clave, valor) VALUES ('baches_por_sesion', 1) ON CONFLICT DO NOTHING")
     conn.commit()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
 
 @app.get("/")
 def index():
@@ -72,7 +77,7 @@ def index():
 
 @app.post("/baches")
 def crear_bache(bache: BacheCreate):
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO baches (latitud, longitud, votos) VALUES (%s, %s, %s) RETURNING id, latitud, longitud, votos, fecha_creacion",
@@ -81,12 +86,12 @@ def crear_bache(bache: BacheCreate):
     row = cur.fetchone()
     conn.commit()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     return {"id": row[0], "latitud": row[1], "longitud": row[2], "votos": row[3], "fecha_creacion": row[4]}
 
 @app.get("/baches")
 def obtener_baches():
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute("SELECT id, latitud, longitud, votos, votantes, completado, fecha_creacion FROM baches ORDER BY fecha_creacion DESC")
     rows = cur.fetchall()
@@ -94,7 +99,7 @@ def obtener_baches():
     umbral_row = cur.fetchone()
     umbral = umbral_row[0] if umbral_row else 100
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     def estado(r):
         if r[5]: return 'reparado'
         if r[3] >= umbral: return 'urgente'
@@ -103,7 +108,7 @@ def obtener_baches():
 
 @app.post("/baches/{id}/votar")
 def votar_bache(id: int, voto: VotoCreate):
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute(
         "UPDATE baches SET votos = votos + %s, votantes = votantes + 1 WHERE id = %s RETURNING votos, votantes",
@@ -112,7 +117,7 @@ def votar_bache(id: int, voto: VotoCreate):
     row = cur.fetchone()
     conn.commit()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     if not row:
         return {"error": "Bache no encontrado"}
     return {"id": id, "votos": row[0], "votantes": row[1]}
@@ -131,17 +136,17 @@ class ConfigUpdate(BaseModel):
 
 @app.get("/config")
 def get_config():
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute("SELECT clave, valor FROM config")
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     return {r[0]: r[1] for r in rows}
 
 @app.post("/config")
 def set_config(cfg: ConfigUpdate):
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'restriccion_votos'", (cfg.restriccion_votos,))
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'restriccion_creacion'", (cfg.restriccion_creacion,))
@@ -153,18 +158,18 @@ def set_config(cfg: ConfigUpdate):
     cur.execute("UPDATE config SET valor = %s WHERE clave = 'baches_por_sesion'", (cfg.baches_por_sesion,))
     conn.commit()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     return {"ok": True}
 
 @app.delete("/baches/{id}")
 def eliminar_bache(id: int):
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute("DELETE FROM baches WHERE id = %s RETURNING id", (id,))
     row = cur.fetchone()
     conn.commit()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     if not row:
         return {"error": "Bache no encontrado"}
     return {"eliminado": True, "id": id}
@@ -172,7 +177,7 @@ def eliminar_bache(id: int):
 
 @app.post("/baches/{id}/completar")
 def completar_bache(id: int):
-    conn = get_db_connection()
+    conn = connection_pool.getconn()
     cur = conn.cursor()
     cur.execute("""
         ALTER TABLE baches ADD COLUMN IF NOT EXISTS completado BOOLEAN DEFAULT FALSE
@@ -188,7 +193,7 @@ def completar_bache(id: int):
     row = cur.fetchone()
     conn.commit()
     cur.close()
-    conn.close()
+    connection_pool.putconn(conn)
     if not row:
         return {"error": "Bache no encontrado"}
     return {"completado": True, "id": id}
